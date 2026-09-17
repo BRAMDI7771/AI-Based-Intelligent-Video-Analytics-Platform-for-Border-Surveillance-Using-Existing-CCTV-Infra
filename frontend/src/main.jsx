@@ -1,7 +1,7 @@
 import React, {useState} from 'react';
 import {createRoot} from 'react-dom/client';
 import {Shield, Mail, Lock, Eye, EyeOff, Moon, Sun} from 'lucide-react';
-import App from './App';
+import App from './app';
 import './styles.css';
 
 function Login({onLogin, theme, setTheme}) {
