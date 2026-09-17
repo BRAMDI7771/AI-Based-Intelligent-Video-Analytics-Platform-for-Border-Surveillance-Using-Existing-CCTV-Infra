@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
-const BACKEND = "https://delegation-specified-legend-scholarship.trycloudflare.com";
+const BACKEND = "https://males-density-fuji-travelling.trycloudflare.com";
 
 function App() {
   const [running, setRunning] = useState(false);
