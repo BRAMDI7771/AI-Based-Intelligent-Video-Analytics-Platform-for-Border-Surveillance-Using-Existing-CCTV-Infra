@@ -24,8 +24,10 @@ function App() {
   // CAMERA LIST
   // ---------------------------------------------------------
 
- async function loadCameras() {
+  async function loadCameras() {
   try {
+    setLoadingCameras(true);
+
     const response = await fetch(
       `${BACKEND}/api/cameras`,
       {
@@ -41,16 +43,14 @@ function App() {
 
     const data = await response.json();
 
-    const cameraList = Array.isArray(
-      data.cameras
-    )
+    const cameraList = Array.isArray(data.cameras)
       ? data.cameras
       : [];
 
     setCameras(cameraList);
 
     // --------------------------------------------------
-    // SELECT FIRST LIVE CAMERA
+    // SELECT FIRST CAMERA
     // --------------------------------------------------
 
     if (cameraList.length > 0) {
@@ -69,7 +69,7 @@ function App() {
     }
 
     // --------------------------------------------------
-    // LIVE DASHBOARD STATS
+    // DASHBOARD STATS
     // --------------------------------------------------
 
     let totalPersons = 0;
@@ -79,13 +79,11 @@ function App() {
 
     let bestName = "UNKNOWN";
     let bestSimilarity = 0;
-
     let bestVehicle = "NONE";
 
     let hasLiveCamera = false;
 
     for (const camera of cameraList) {
-
       totalPersons += Number(
         camera.persons ?? 0
       );
@@ -138,7 +136,6 @@ function App() {
 
     setStats({
       personsCount: totalPersons,
-
       vehiclesCount: totalVehicles,
 
       fps:
@@ -163,6 +160,8 @@ function App() {
       "Camera list error:",
       err
     );
+  } finally {
+    setLoadingCameras(false);
   }
 }
   // ---------------------------------------------------------
@@ -170,168 +169,99 @@ function App() {
   // ---------------------------------------------------------
 
   async function startSurveillance() {
-    try {
-      setError("");
+  try {
+    setError("");
+    setRunning(true);
 
-      setStats((prev) => ({
-        ...prev,
-        status: "STARTING CAMERA",
-      }));
+    const response = await fetch(`${BACKEND}/api/laptop/start`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
 
-      const response = await fetch(
-        `${BACKEND}/api/laptop/start`,
-        {
-          method: "POST",
-        }
-      );
+    const data = await response.json();
 
-      const data = await response.json();
-
-      console.log(
-        "Laptop camera response:",
-        data
-      );
-
-      if (!response.ok || data.success === false) {
-        throw new Error(
-          data.message ||
-            "Could not start laptop camera"
-        );
-      }
-
-      // Give backend worker time to initialize
-      await new Promise((resolve) => {
-        setTimeout(resolve, 800);
-      });
-
-      await loadCameras();
-
-      setRunning(true);
-
-      setStats((prev) => ({
-        ...prev,
-        status: "SYSTEM MONITORING",
-      }));
-    } catch (err) {
-      console.error(
-        "Camera start error:",
-        err
-      );
-
-      setError(
-        err?.message ||
-          "Unable to start laptop camera"
-      );
-
-      setRunning(false);
-
-      setStats((prev) => ({
-        ...prev,
-        status: "SYSTEM ERROR",
-      }));
+    if (!response.ok || !data.success) {
+      throw new Error(data.message || "Unable to start laptop camera");
     }
+
+    console.log("Laptop camera:", data.message);
+
+    setStats((prev) => ({
+      ...prev,
+      status: "SYSTEM MONITORING",
+    }));
+
+  } catch (err) {
+    console.error("Start surveillance error:", err);
+
+    setError(err.message || "Unable to start surveillance");
+    setRunning(false);
   }
+}
 
   // ---------------------------------------------------------
   // STOP CENTRALIZED LAPTOP CAMERA
   // ---------------------------------------------------------
 
   async function stopSurveillance() {
-    try {
-      setError("");
-
-      await fetch(
-        `${BACKEND}/api/laptop/stop`,
-        {
-          method: "POST",
-        }
-      );
-    } catch (err) {
-      console.error(
-        "Camera stop error:",
-        err
-      );
-    }
-
-    setRunning(false);
-    setSelectedCameraId(null);
-
-    setStats((prev) => ({
-  personsCount: totalPersons,
-  vehiclesCount: totalVehicles,
-
-  fps:
-    fpsCameras > 0
-      ? totalFps / fpsCameras
-      : 0,
-
-  recognizedName:
-    bestName !== "UNKNOWN"
-      ? bestName
-      : prev.recognizedName,
-
-  recognitionConfidence:
-    bestName !== "UNKNOWN"
-      ? bestSimilarity
-      : prev.recognitionConfidence,
-
-  vehicleName:
-    bestVehicle !== "NONE"
-      ? bestVehicle
-      : prev.vehicleName,
-
-  status: hasLiveCamera
-    ? "SYSTEM MONITORING"
-    : "SYSTEM IDLE",
-}));
-
-    await loadCameras();
+  try {
+    await fetch(`${BACKEND}/api/laptop/stop`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+  } catch (err) {
+    console.error("Stop camera error:", err);
   }
 
-  // ---------------------------------------------------------
-  // OPEN REMOTE CAMERA PAGE
-  // ---------------------------------------------------------
+  setRunning(false);
 
-  function openRemoteCameraPage() {
-    window.open(
-      `${BACKEND}/phone`,
-      "_blank",
-      "noopener,noreferrer"
-    );
-  }
+  setStats({
+    personsCount: 0,
+    vehiclesCount: 0,
+    fps: 0,
+    recognizedName: "UNKNOWN",
+    recognitionConfidence: 0,
+    vehicleName: "NONE",
+    status: "SYSTEM IDLE",
+  });
+}
+// ---------------------------------------------------------
+// REMOTE CAMERA
+// ---------------------------------------------------------
 
+function openRemoteCameraPage() {
+  window.open(
+    `${BACKEND}/phone`,
+    "_blank",
+    "noopener,noreferrer"
+  );
+}
   // ---------------------------------------------------------
   // POLLING
   // ---------------------------------------------------------
 
   useEffect(() => {
   loadCameras();
-  
 
   const timer = setInterval(() => {
     loadCameras();
-    
-  }, 500);
+  }, 2000);
 
   return () => {
     clearInterval(timer);
+    
   };
 }, []);
+
   // ---------------------------------------------------------
   // CLEANUP ON PAGE EXIT
   // ---------------------------------------------------------
 
-  useEffect(() => {
-    return () => {
-      fetch(
-        `${BACKEND}/api/laptop/stop`,
-        {
-          method: "POST",
-          keepalive: true,
-        }
-      ).catch(() => {});
-    };
-  }, []);
+  
 
   // ---------------------------------------------------------
   // SELECTED CAMERA
