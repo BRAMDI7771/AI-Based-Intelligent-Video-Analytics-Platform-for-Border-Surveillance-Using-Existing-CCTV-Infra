@@ -1,0 +1,7 @@
+backend/.env
+backend/server_key.pem
+backend/server_cert.pem
+backend/face_embeddings.pkl
+backend/__pycache__/
+frontend/node_modules/
+*.pyc
