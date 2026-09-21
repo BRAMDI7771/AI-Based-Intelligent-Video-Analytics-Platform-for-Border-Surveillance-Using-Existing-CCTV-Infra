@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-const BACKEND = "https://safer-improvement-recognize-mode.trycloudflare.com";
+const BACKEND = "https://mall-cia-pig-scsi.trycloudflare.com";
 
 function App() {
   const [running, setRunning] = useState(false);
