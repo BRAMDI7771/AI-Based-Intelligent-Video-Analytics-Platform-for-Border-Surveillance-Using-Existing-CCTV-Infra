@@ -1,0 +1,330 @@
+[2026-09-16 04:24:01] ALERT: Red Zone Breach! Intent: PATROLLING / NORMAL
+[2026-09-16 04:24:05] ALERT: Red Zone Breach! Intent: PATROLLING / NORMAL
+[2026-09-16 04:24:08] ALERT: Red Zone Breach! Intent: PATROLLING / NORMAL
+[2026-09-16 04:24:11] ALERT: Red Zone Breach! Intent: PATROLLING / NORMAL
+[2026-09-16 04:24:14] ALERT: Red Zone Breach! Intent: FAST APPROACH
+[2026-09-16 04:24:18] ALERT: Red Zone Breach! Intent: RUNNING / SPRINTING (CRITICAL THREAT)
+[2026-09-16 04:24:21] ALERT: Red Zone Breach! Intent: FAST APPROACH
+[2026-09-16 04:24:24] ALERT: Red Zone Breach! Intent: RUNNING / SPRINTING (CRITICAL THREAT)
+[2026-09-16 04:24:27] ALERT: Red Zone Breach! Intent: PATROLLING / NORMAL
+[2026-09-16 04:24:31] ALERT: Red Zone Breach! Intent: PATROLLING / NORMAL
+[2026-09-16 04:24:34] ALERT: Red Zone Breach! Intent: PATROLLING / NORMAL
+[2026-09-16 04:28:31] ALERT: Red Zone Breach! Target #1 | Intent: FAST APPROACH
+[2026-09-16 04:28:44] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-16 04:28:47] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-16 04:28:50] ALERT: Red Zone Breach! Target #1 | Intent: PATROLLING
+[2026-09-16 04:28:53] ALERT: Red Zone Breach! Target #1 | Intent: FAST APPROACH
+[2026-09-16 04:28:56] ALERT: Red Zone Breach! Target #1 | Intent: PATROLLING
+[2026-09-16 04:32:02] ALERT: Red Zone Breach! Target #1 | Intent: CRAWLING (THREAT)
+[2026-09-16 04:32:05] ALERT: Red Zone Breach! Target #1 | Intent: CRAWLING (THREAT)
+[2026-09-16 04:32:14] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-16 04:32:21] ALERT: Red Zone Breach! Target #1 | Intent: CRAWLING (THREAT)
+[2026-09-16 04:32:24] ALERT: Red Zone Breach! Target #1 | Intent: CRAWLING (THREAT)
+[2026-09-16 04:32:27] ALERT: Red Zone Breach! Target #1 | Intent: CRAWLING (THREAT)
+[2026-09-16 04:32:30] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-16 04:32:34] ALERT: Red Zone Breach! Target #1 | Intent: CRAWLING (THREAT)
+[2026-09-16 11:57:52] ALERT: Red Zone Breach! Target #1 | Intent: PATROLLING
+[2026-09-16 11:57:55] ALERT: Red Zone Breach! Target #1 | Intent: FAST APPROACH
+[2026-09-16 11:57:59] ALERT: Red Zone Breach! Target #1 | Intent: PATROLLING
+[2026-09-16 11:58:02] ALERT: Red Zone Breach! Target #1 | Intent: PATROLLING
+[2026-09-16 11:58:41] ALERT: Red Zone Breach! Target #1 | Intent: PATROLLING
+[2026-09-16 11:58:45] ALERT: Red Zone Breach! Target #1 | Intent: CRAWLING (THREAT)
+[2026-09-16 11:58:48] ALERT: Red Zone Breach! Target #1 | Intent: CRAWLING (THREAT)
+[2026-09-16 11:58:51] ALERT: Red Zone Breach! Target #1 | Intent: CRAWLING (THREAT)
+[2026-09-16 11:59:10] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-16 11:59:13] ALERT: Red Zone Breach! Target #1 | Intent: CRAWLING (THREAT)
+[2026-09-16 11:59:16] ALERT: Red Zone Breach! Target #1 | Intent: CRAWLING (THREAT)
+[2026-09-16 11:59:19] ALERT: Red Zone Breach! Target #1 | Intent: CRAWLING (THREAT)
+[2026-09-16 11:59:22] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-16 11:59:25] ALERT: Red Zone Breach! Target #2 | Intent: RUNNING (HIGH THREAT)
+[2026-09-16 11:59:32] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-16 11:59:35] ALERT: Red Zone Breach! Target #2 | Intent: PATROLLING
+[2026-09-16 11:59:39] ALERT: Red Zone Breach! Target #1 | Intent: FAST APPROACH
+[2026-09-17 15:06:03] ALERT: Red Zone Breach! Target #1 | Intent: PATROLLING
+[2026-09-17 15:06:06] ALERT: Red Zone Breach! Target #1 | Intent: PATROLLING
+[2026-09-17 15:06:09] ALERT: Red Zone Breach! Target #1 | Intent: PATROLLING
+[2026-09-17 15:06:12] ALERT: Red Zone Breach! Target #1 | Intent: CRAWLING (THREAT)
+[2026-09-17 15:06:16] ALERT: Red Zone Breach! Target #1 | Intent: CRAWLING (THREAT)
+[2026-09-17 15:06:19] ALERT: Red Zone Breach! Target #1 | Intent: CRAWLING (THREAT)
+[2026-09-17 15:06:23] ALERT: Red Zone Breach! Target #1 | Intent: CRAWLING (THREAT)
+[2026-09-17 15:06:26] ALERT: Red Zone Breach! Target #1 | Intent: CRAWLING (THREAT)
+[2026-09-17 15:06:29] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-17 15:06:32] ALERT: Red Zone Breach! Target #1 | Intent: CRAWLING (THREAT)
+[2026-09-17 15:06:36] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-17 15:06:39] ALERT: Red Zone Breach! Target #1 | Intent: CRAWLING (THREAT)
+[2026-09-17 15:06:42] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-17 15:06:46] ALERT: Red Zone Breach! Target #1 | Intent: FAST APPROACH
+[2026-09-17 15:06:49] ALERT: Red Zone Breach! Target #1 | Intent: CRAWLING (THREAT)
+[2026-09-17 15:06:52] ALERT: Red Zone Breach! Target #1 | Intent: PATROLLING
+[2026-09-17 15:06:55] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-17 15:06:58] ALERT: Red Zone Breach! Target #1 | Intent: CRAWLING (THREAT)
+[2026-09-17 15:07:01] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-17 15:07:05] ALERT: Red Zone Breach! Target #1 | Intent: CRAWLING (THREAT)
+[2026-09-17 15:07:08] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-17 15:07:11] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-17 15:07:14] ALERT: Red Zone Breach! Target #1 | Intent: FAST APPROACH
+[2026-09-17 15:07:18] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-17 15:07:21] ALERT: Red Zone Breach! Target #1 | Intent: PATROLLING
+[2026-09-17 15:07:24] ALERT: Red Zone Breach! Target #1 | Intent: PATROLLING
+[2026-09-17 15:07:28] ALERT: Red Zone Breach! Target #1 | Intent: PATROLLING
+[2026-09-17 15:07:31] ALERT: Red Zone Breach! Target #1 | Intent: PATROLLING
+[2026-09-17 15:07:34] ALERT: Red Zone Breach! Target #1 | Intent: PATROLLING
+[2026-09-17 15:07:37] ALERT: Red Zone Breach! Target #1 | Intent: PATROLLING
+[2026-09-17 15:07:40] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-17 15:07:44] ALERT: Red Zone Breach! Target #1 | Intent: CRAWLING (THREAT)
+[2026-09-17 15:07:47] ALERT: Red Zone Breach! Target #1 | Intent: PATROLLING
+[2026-09-17 15:08:08] ALERT: Red Zone Breach! Target #1 | Intent: CRAWLING (THREAT)
+[2026-09-17 15:08:11] ALERT: Red Zone Breach! Target #1 | Intent: CRAWLING (THREAT)
+[2026-09-17 15:08:14] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-17 15:12:42] ALERT: Red Zone Breach! Target #1 | Intent: CRAWLING (THREAT)
+[2026-09-17 15:12:45] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-17 15:12:49] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-17 15:12:52] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-17 15:12:56] ALERT: Red Zone Breach! Target #1 | Intent: CRAWLING (THREAT)
+[2026-09-17 15:41:10] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-17 15:41:13] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-17 15:41:16] ALERT: Red Zone Breach! Target #1 | Intent: PATROLLING
+[2026-09-17 15:41:20] ALERT: Red Zone Breach! Target #2 | Intent: RUNNING (HIGH THREAT)
+[2026-09-17 15:41:24] ALERT: Red Zone Breach! Target #1 | Intent: CRAWLING (THREAT)
+[2026-09-17 15:41:27] ALERT: Red Zone Breach! Target #1 | Intent: CRAWLING (THREAT)
+[2026-09-17 15:41:30] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-17 15:41:41] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-17 15:42:15] ALERT: Red Zone Breach! Target #2 | Intent: RUNNING (HIGH THREAT)
+[2026-09-17 15:42:20] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-17 15:42:23] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-17 15:42:29] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-17 15:42:33] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-17 15:42:38] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-17 15:42:41] ALERT: Red Zone Breach! Target #1 | Intent: PATROLLING
+[2026-09-17 15:42:53] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-17 15:42:56] ALERT: Red Zone Breach! Target #1 | Intent: CRAWLING (THREAT)
+[2026-09-18 12:29:20] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-18 12:29:23] ALERT: Red Zone Breach! Target #1 | Intent: CRAWLING (THREAT)
+[2026-09-18 12:29:26] ALERT: Red Zone Breach! Target #1 | Intent: PATROLLING
+[2026-09-18 12:29:31] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-18 12:29:34] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-18 12:41:56] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-18 12:42:01] ALERT: Red Zone Breach! Target #1 | Intent: FAST APPROACH
+[2026-09-18 12:42:04] ALERT: Red Zone Breach! Target #1 | Intent: PATROLLING
+[2026-09-18 12:42:08] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-18 12:42:11] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-18 12:42:16] ALERT: Red Zone Breach! Target #2 | Intent: RUNNING (HIGH THREAT)
+[2026-09-18 12:42:20] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-18 13:01:56] ALERT: Red Zone Breach! Target #1 | Intent: PATROLLING
+[2026-09-18 13:01:59] ALERT: Red Zone Breach! Target #1 | Intent: PATROLLING
+[2026-09-18 13:02:02] ALERT: Red Zone Breach! Target #1 | Intent: PATROLLING
+[2026-09-18 13:02:06] ALERT: Red Zone Breach! Target #1 | Intent: PATROLLING
+[2026-09-18 13:02:09] ALERT: Red Zone Breach! Target #1 | Intent: CRAWLING (THREAT)
+[2026-09-18 13:02:12] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-18 13:02:16] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-18 13:02:19] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-18 13:02:22] ALERT: Red Zone Breach! Target #1 | Intent: PATROLLING
+[2026-09-18 13:02:25] ALERT: Red Zone Breach! Target #1 | Intent: PATROLLING
+[2026-09-18 13:02:28] ALERT: Red Zone Breach! Target #1 | Intent: FAST APPROACH
+[2026-09-18 13:33:44] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-18 13:33:49] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-18 13:33:53] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-18 13:34:03] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-18 13:34:33] ALERT: Red Zone Breach! Target #1 | Intent: CRAWLING (THREAT)
+[2026-09-18 13:34:37] ALERT: Red Zone Breach! Target #1 | Intent: CRAWLING (THREAT)
+[2026-09-18 13:34:41] ALERT: Red Zone Breach! Target #1 | Intent: CRAWLING (THREAT)
+[2026-09-18 13:34:44] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-18 13:34:48] ALERT: Red Zone Breach! Target #1 | Intent: PATROLLING
+[2026-09-18 13:34:51] ALERT: Red Zone Breach! Target #1 | Intent: PATROLLING
+[2026-09-18 13:34:54] ALERT: Red Zone Breach! Target #1 | Intent: PATROLLING
+[2026-09-18 13:34:57] ALERT: Red Zone Breach! Target #1 | Intent: PATROLLING
+[2026-09-18 13:35:01] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-18 13:35:04] ALERT: Red Zone Breach! Target #1 | Intent: CRAWLING (THREAT)
+[2026-09-18 13:35:08] ALERT: Red Zone Breach! Target #2 | Intent: CRAWLING (THREAT)
+[2026-09-18 13:35:11] ALERT: Red Zone Breach! Target #2 | Intent: RUNNING (HIGH THREAT)
+[2026-09-18 13:35:14] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-18 13:35:20] ALERT: Red Zone Breach! Target #3 | Intent: RUNNING (HIGH THREAT)
+[2026-09-18 13:35:27] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-18 13:35:30] ALERT: Red Zone Breach! Target #1 | Intent: PATROLLING
+[2026-09-18 13:35:35] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-18 13:35:38] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-18 13:35:42] ALERT: Red Zone Breach! Target #2 | Intent: CRAWLING (THREAT)
+[2026-09-18 13:35:46] ALERT: Red Zone Breach! Target #2 | Intent: RUNNING (HIGH THREAT)
+[2026-09-18 13:35:49] ALERT: Red Zone Breach! Target #1 | Intent: CRAWLING (THREAT)
+[2026-09-18 13:35:52] ALERT: Red Zone Breach! Target #1 | Intent: FAST APPROACH
+[2026-09-18 13:35:55] ALERT: Red Zone Breach! Target #1 | Intent: CRAWLING (THREAT)
+[2026-09-18 13:35:58] ALERT: Red Zone Breach! Target #1 | Intent: FAST APPROACH
+[2026-09-18 13:36:10] ALERT: Red Zone Breach! Target #2 | Intent: RUNNING (HIGH THREAT)
+[2026-09-18 13:36:29] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-18 13:36:32] ALERT: Red Zone Breach! Target #1 | Intent: CRAWLING (THREAT)
+[2026-09-18 13:36:36] ALERT: Red Zone Breach! Target #1 | Intent: CRAWLING (THREAT)
+[2026-09-18 13:36:39] ALERT: Red Zone Breach! Target #2 | Intent: CRAWLING (THREAT)
+[2026-09-18 13:36:48] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-18 13:36:55] ALERT: Red Zone Breach! Target #1 | Intent: CRAWLING (THREAT)
+[2026-09-18 13:37:02] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-18 13:37:08] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-18 13:37:11] ALERT: Red Zone Breach! Target #1 | Intent: CRAWLING (THREAT)
+[2026-09-18 13:37:14] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-18 13:37:18] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-18 13:37:23] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 15:26:16] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 15:26:19] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 15:26:25] ALERT: Red Zone Breach! Target #2 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 15:26:40] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 15:26:43] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 15:26:46] ALERT: Red Zone Breach! Target #1 | Intent: CRAWLING (THREAT)
+[2026-09-21 15:26:49] ALERT: Red Zone Breach! Target #1 | Intent: CRAWLING (THREAT)
+[2026-09-21 15:26:52] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 15:26:55] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 16:01:16] ALERT: Red Zone Breach! Target #1 | Intent: CRAWLING (THREAT)
+[2026-09-21 16:01:19] ALERT: Red Zone Breach! Target #1 | Intent: CRAWLING (THREAT)
+[2026-09-21 16:01:22] ALERT: Red Zone Breach! Target #1 | Intent: FAST APPROACH
+[2026-09-21 16:01:25] ALERT: Red Zone Breach! Target #1 | Intent: CRAWLING (THREAT)
+[2026-09-21 16:01:29] ALERT: Red Zone Breach! Target #1 | Intent: FAST APPROACH
+[2026-09-21 16:02:06] ALERT: Red Zone Breach! Target #1 | Intent: PATROLLING
+[2026-09-21 16:02:09] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 16:02:12] ALERT: Red Zone Breach! Target #2 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 16:02:15] ALERT: Red Zone Breach! Target #1 | Intent: PATROLLING
+[2026-09-21 16:02:18] ALERT: Red Zone Breach! Target #1 | Intent: PATROLLING
+[2026-09-21 16:02:21] ALERT: Red Zone Breach! Target #2 | Intent: PATROLLING
+[2026-09-21 16:02:25] ALERT: Red Zone Breach! Target #1 | Intent: PATROLLING
+[2026-09-21 16:02:28] ALERT: Red Zone Breach! Target #1 | Intent: PATROLLING
+[2026-09-21 16:02:31] ALERT: Red Zone Breach! Target #1 | Intent: PATROLLING
+[2026-09-21 16:02:34] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 16:02:38] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 16:04:33] ALERT: Red Zone Breach! Target #1 | Intent: CRAWLING (THREAT)
+[2026-09-21 16:04:36] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 16:04:40] ALERT: Red Zone Breach! Target #1 | Intent: PATROLLING
+[2026-09-21 16:04:43] ALERT: Red Zone Breach! Target #1 | Intent: CRAWLING (THREAT)
+[2026-09-21 16:04:46] ALERT: Red Zone Breach! Target #1 | Intent: PATROLLING
+[2026-09-21 16:04:49] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 16:04:52] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 16:04:56] ALERT: Red Zone Breach! Target #1 | Intent: PATROLLING
+[2026-09-21 16:04:59] ALERT: Red Zone Breach! Target #1 | Intent: PATROLLING
+[2026-09-21 16:05:02] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 16:05:05] ALERT: Red Zone Breach! Target #1 | Intent: PATROLLING
+[2026-09-21 16:05:09] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 16:05:12] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 16:05:15] ALERT: Red Zone Breach! Target #1 | Intent: FAST APPROACH
+[2026-09-21 16:05:19] ALERT: Red Zone Breach! Target #1 | Intent: PATROLLING
+[2026-09-21 16:05:22] ALERT: Red Zone Breach! Target #1 | Intent: PATROLLING
+[2026-09-21 16:05:25] ALERT: Red Zone Breach! Target #1 | Intent: PATROLLING
+[2026-09-21 16:05:28] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 16:05:31] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 16:05:34] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 16:05:38] ALERT: Red Zone Breach! Target #1 | Intent: CRAWLING (THREAT)
+[2026-09-21 16:05:43] ALERT: Red Zone Breach! Target #1 | Intent: CRAWLING (THREAT)
+[2026-09-21 16:05:46] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 16:07:58] ALERT: Red Zone Breach! Target #1 | Intent: FAST APPROACH
+[2026-09-21 16:08:01] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 16:08:04] ALERT: Red Zone Breach! Target #1 | Intent: CRAWLING (THREAT)
+[2026-09-21 16:08:12] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 16:08:15] ALERT: Red Zone Breach! Target #1 | Intent: CRAWLING (THREAT)
+[2026-09-21 16:08:19] ALERT: Red Zone Breach! Target #1 | Intent: CRAWLING (THREAT)
+[2026-09-21 16:08:22] ALERT: Red Zone Breach! Target #1 | Intent: CRAWLING (THREAT)
+[2026-09-21 16:08:25] ALERT: Red Zone Breach! Target #1 | Intent: PATROLLING
+[2026-09-21 16:08:30] ALERT: Red Zone Breach! Target #1 | Intent: FAST APPROACH
+[2026-09-21 16:08:33] ALERT: Red Zone Breach! Target #1 | Intent: CRAWLING (THREAT)
+[2026-09-21 16:08:36] ALERT: Red Zone Breach! Target #1 | Intent: CRAWLING (THREAT)
+[2026-09-21 16:08:40] ALERT: Red Zone Breach! Target #1 | Intent: CRAWLING (THREAT)
+[2026-09-21 16:08:43] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 16:08:46] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 16:08:53] ALERT: Red Zone Breach! Target #1 | Intent: PATROLLING
+[2026-09-21 16:08:58] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 16:09:02] ALERT: Red Zone Breach! Target #1 | Intent: FAST APPROACH
+[2026-09-21 16:09:05] ALERT: Red Zone Breach! Target #1 | Intent: PATROLLING
+[2026-09-21 16:09:08] ALERT: Red Zone Breach! Target #1 | Intent: PATROLLING
+[2026-09-21 16:09:11] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 16:09:14] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 16:09:17] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 16:09:21] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 16:09:24] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 16:09:28] ALERT: Red Zone Breach! Target #1 | Intent: PATROLLING
+[2026-09-21 16:09:31] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 16:09:34] ALERT: Red Zone Breach! Target #1 | Intent: CRAWLING (THREAT)
+[2026-09-21 16:09:38] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 16:09:42] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 16:09:46] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 16:09:49] ALERT: Red Zone Breach! Target #1 | Intent: PATROLLING
+[2026-09-21 16:09:52] ALERT: Red Zone Breach! Target #1 | Intent: PATROLLING
+[2026-09-21 16:09:55] ALERT: Red Zone Breach! Target #1 | Intent: FAST APPROACH
+[2026-09-21 16:09:59] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 16:10:02] ALERT: Red Zone Breach! Target #1 | Intent: CRAWLING (THREAT)
+[2026-09-21 16:10:05] ALERT: Red Zone Breach! Target #1 | Intent: FAST APPROACH
+[2026-09-21 16:10:08] ALERT: Red Zone Breach! Target #1 | Intent: CRAWLING (THREAT)
+[2026-09-21 16:10:12] ALERT: Red Zone Breach! Target #1 | Intent: CRAWLING (THREAT)
+[2026-09-21 16:10:15] ALERT: Red Zone Breach! Target #1 | Intent: CRAWLING (THREAT)
+[2026-09-21 16:10:19] ALERT: Red Zone Breach! Target #1 | Intent: CRAWLING (THREAT)
+[2026-09-21 16:10:22] ALERT: Red Zone Breach! Target #1 | Intent: FAST APPROACH
+[2026-09-21 16:10:25] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 16:11:07] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 16:11:11] ALERT: Red Zone Breach! Target #1 | Intent: CRAWLING (THREAT)
+[2026-09-21 16:11:14] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 16:11:17] ALERT: Red Zone Breach! Target #1 | Intent: PATROLLING
+[2026-09-21 16:11:20] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 16:11:25] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 16:11:28] ALERT: Red Zone Breach! Target #1 | Intent: CRAWLING (THREAT)
+[2026-09-21 16:11:31] ALERT: Red Zone Breach! Target #1 | Intent: CRAWLING (THREAT)
+[2026-09-21 16:11:34] ALERT: Red Zone Breach! Target #1 | Intent: CRAWLING (THREAT)
+[2026-09-21 16:11:37] ALERT: Red Zone Breach! Target #1 | Intent: CRAWLING (THREAT)
+[2026-09-21 16:11:40] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 16:11:43] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 16:11:47] ALERT: Red Zone Breach! Target #1 | Intent: CRAWLING (THREAT)
+[2026-09-21 16:11:50] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 16:11:54] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 16:11:57] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 16:12:00] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 16:12:03] ALERT: Red Zone Breach! Target #1 | Intent: PATROLLING
+[2026-09-21 16:12:07] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 16:12:10] ALERT: Red Zone Breach! Target #1 | Intent: PATROLLING
+[2026-09-21 16:12:13] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 16:12:16] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 16:12:19] ALERT: Red Zone Breach! Target #1 | Intent: PATROLLING
+[2026-09-21 16:12:23] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 16:12:26] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 16:12:32] ALERT: Red Zone Breach! Target #1 | Intent: FAST APPROACH
+[2026-09-21 16:12:41] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 16:12:44] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 16:12:47] ALERT: Red Zone Breach! Target #1 | Intent: CRAWLING (THREAT)
+[2026-09-21 16:23:09] ALERT: Red Zone Breach! Target #1 | Intent: CRAWLING (THREAT)
+[2026-09-21 16:23:12] ALERT: Red Zone Breach! Target #1 | Intent: FAST APPROACH
+[2026-09-21 16:23:16] ALERT: Red Zone Breach! Target #1 | Intent: PATROLLING
+[2026-09-21 16:23:19] ALERT: Red Zone Breach! Target #1 | Intent: PATROLLING
+[2026-09-21 16:23:22] ALERT: Red Zone Breach! Target #1 | Intent: PATROLLING
+[2026-09-21 16:23:26] ALERT: Red Zone Breach! Target #1 | Intent: FAST APPROACH
+[2026-09-21 16:23:29] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 16:23:32] ALERT: Red Zone Breach! Target #1 | Intent: PATROLLING
+[2026-09-21 16:23:35] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 16:23:39] ALERT: Red Zone Breach! Target #1 | Intent: PATROLLING
+[2026-09-21 16:23:42] ALERT: Red Zone Breach! Target #1 | Intent: PATROLLING
+[2026-09-21 16:23:46] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 16:23:49] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 16:23:53] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 16:23:56] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 16:24:00] ALERT: Red Zone Breach! Target #1 | Intent: FAST APPROACH
+[2026-09-21 16:24:03] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 16:24:06] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 16:24:09] ALERT: Red Zone Breach! Target #1 | Intent: FAST APPROACH
+[2026-09-21 16:24:13] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 16:24:16] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 16:24:19] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 16:24:22] ALERT: Red Zone Breach! Target #1 | Intent: PATROLLING
+[2026-09-21 16:24:26] ALERT: Red Zone Breach! Target #1 | Intent: PATROLLING
+[2026-09-21 16:24:29] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 16:24:32] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 16:24:35] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 16:24:38] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 16:24:42] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 16:24:45] ALERT: Red Zone Breach! Target #1 | Intent: FAST APPROACH
+[2026-09-21 16:24:48] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 16:24:51] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 16:24:54] ALERT: Red Zone Breach! Target #1 | Intent: PATROLLING
+[2026-09-21 16:24:58] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 16:25:01] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 16:25:04] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 16:25:07] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 16:25:10] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 16:25:14] ALERT: Red Zone Breach! Target #1 | Intent: PATROLLING
+[2026-09-21 16:25:17] ALERT: Red Zone Breach! Target #1 | Intent: PATROLLING
+[2026-09-21 16:25:20] ALERT: Red Zone Breach! Target #1 | Intent: FAST APPROACH
+[2026-09-21 16:25:23] ALERT: Red Zone Breach! Target #1 | Intent: FAST APPROACH
+[2026-09-21 16:25:27] ALERT: Red Zone Breach! Target #1 | Intent: PATROLLING
+[2026-09-21 16:25:30] ALERT: Red Zone Breach! Target #1 | Intent: PATROLLING
+[2026-09-21 16:25:33] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 16:25:36] ALERT: Red Zone Breach! Target #1 | Intent: RUNNING (HIGH THREAT)
+[2026-09-21 16:25:40] ALERT: Red Zone Breach! Target #1 | Intent: PATROLLING
