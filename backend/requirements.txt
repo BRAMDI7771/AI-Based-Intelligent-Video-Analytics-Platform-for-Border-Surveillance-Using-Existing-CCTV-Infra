@@ -2,3 +2,4 @@ python-dotenv
 av
 opencv-python-headless
 aiohttp
+aiortc
