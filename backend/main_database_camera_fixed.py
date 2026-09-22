@@ -10057,18 +10057,21 @@ def main():
     # SERVER
     # --------------------------------------------------------
 
+    railway_port = os.getenv("PORT")
+
+if railway_port:
     web.run_app(
-
         app,
-
-        host=SERVER_HOST,
-
-        port=SERVER_PORT,
-
-        ssl_context=ssl_context
-
+        host="0.0.0.0",
+        port=int(railway_port)
     )
-
+else:
+    web.run_app(
+        app,
+        host=SERVER_HOST,
+        port=SERVER_PORT,
+        ssl_context=ssl_context
+    )
 
 # ============================================================
 # ENTRY POINT
