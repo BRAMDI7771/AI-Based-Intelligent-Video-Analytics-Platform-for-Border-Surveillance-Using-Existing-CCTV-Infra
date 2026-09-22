@@ -1,7 +1,11 @@
 import asyncio
 import json
 import os
-from dotenv import load_dotenv
+try:
+    from dotenv import load_dotenv
+except ImportError:
+    def load_dotenv(*args, **kwargs):
+        return False
 load_dotenv()
 import re
 import shutil
@@ -10059,19 +10063,19 @@ def main():
 
     railway_port = os.getenv("PORT")
 
-if railway_port:
-    web.run_app(
-        app,
-        host="0.0.0.0",
-        port=int(railway_port)
-    )
-else:
-    web.run_app(
-        app,
-        host=SERVER_HOST,
-        port=SERVER_PORT,
-        ssl_context=ssl_context
-    )
+    if railway_port:
+        web.run_app(
+            app,
+            host="0.0.0.0",
+            port=int(railway_port)
+        )
+    else:
+        web.run_app(
+            app,
+            host=SERVER_HOST,
+            port=SERVER_PORT,
+            ssl_context=ssl_context
+        )
 
 # ============================================================
 # ENTRY POINT
