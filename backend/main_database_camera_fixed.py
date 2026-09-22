@@ -21,6 +21,11 @@ import av
 import cv2
 import numpy as np
 
+try:
+    import winsound
+except Exception:
+    winsound = None
+
 from aiohttp import web
 
 from aiortc import (
@@ -28,416 +33,22 @@ from aiortc import (
     RTCSessionDescription,
     RTCConfiguration,
     RTCIceServer,
-    MediaStreamTrack,
 )
-from av import VideoFrame
+
 from ultralytics import YOLO
 
-# Optional ANPR OCR backend
+try:
+    import torch
+except Exception:
+    torch = None
+
+# Optional ANPR OCR backend. The app still runs if Tesseract is not installed.
 try:
     import pytesseract
 except Exception:
     pytesseract = None
 
-# ============================================================
-# CONFIGURATION & GLOBAL CONSTANTS
-# ============================================================
-MODEL_PATH = "yolo11n.pt"
-VEHICLE_CLASS_IDS = {2, 3, 5, 7}  # COCO IDs for Car, Motorcycle, Bus, Truck
 
-# Load YOLO Model
-model = YOLO(MODEL_PATH)
-
-# Load Face Embeddings if present
-KNOWN_FACES_FILE = "face_embeddings.pkl"
-known_face_encodings = []
-known_face_names = []
-
-if os.path.exists(KNOWN_FACES_FILE):
-    try:
-        with open(KNOWN_FACES_FILE, "rb") as f:
-            data = pickle.load(f)
-            if isinstance(data, dict):
-                known_face_encodings = data.get("encodings", [])
-                known_face_names = data.get("names", [])
-            elif isinstance(data, tuple) and len(data) == 2:
-                known_face_encodings, known_face_names = data
-        print(f"Successfully loaded {len(known_face_names)} face embeddings.")
-    except Exception as e:
-        print(f"Error loading face embeddings: {e}")
-
-# Load YuNet Face Detector
-YUNET_MODEL_PATH = "face_detection_yunet_2023mar.onnx"
-yunet_detector = None
-if os.path.exists(YUNET_MODEL_PATH):
-    try:
-        yunet_detector = cv2.FaceDetectorYN.create(
-            model=YUNET_MODEL_PATH,
-            config="",
-            input_size=(320, 320),
-            score_threshold=0.6,
-            nms_threshold=0.3,
-            top_k=5000
-        )
-    except Exception as e:
-        print(f"Error loading YuNet model: {e}")
-# ============================================================
-# LIVE DASHBOARD TELEMETRY
-# ============================================================
-
-latest_dashboard_stats = {
-    "persons": 0,
-    "vehicles": 0,
-    "fps": 0.0,
-    "display_name": "UNKNOWN",
-    "similarity": 0.0,
-    "vehicle_name": "NONE",
-    "status": "SYSTEM IDLE",
-}
-# ============================================================
-# WEBRTC TRANSFORM TRACK WITH YOLO & FACE RECOGNITION
-# ============================================================
-class VideoTransformTrack(MediaStreamTrack):
-
-    kind = "video"
-
-    def __init__(
-        self,
-        track,
-        channel_container=None
-    ):
-        super().__init__()
-
-        self.track = track
-
-        self.channel_container = (
-            channel_container
-            if isinstance(channel_container, dict)
-            else {}
-        )
-
-        # Use the SAME processing pipeline
-        # that already contains YOLO + tracking
-        # + database face recognition.
-        self.session = CameraSession(
-            camera_id="CAM-REACT",
-            source_type="WEB"
-        )
-    async def recv(self):
-
-        frame = await self.track.recv()
-
-        img = frame.to_ndarray(
-            format="bgr24"
-        )
-
-        h, w, _ = img.shape
-
-        annotated_frame = img.copy()
-
-        # ========================================================
-        # YOLO
-        # ========================================================
-
-        results = model(
-            img,
-            verbose=False
-        )
-
-        person_count = 0
-        vehicle_count = 0
-
-        best_name = "UNKNOWN"
-        best_similarity = 0.0
-
-        vehicle_names = []
-
-        # ========================================================
-        # DETECTIONS
-        # ========================================================
-
-        for box in results[0].boxes:
-
-            cls_id = int(
-                box.cls[0]
-            )
-
-            confidence = float(
-                box.conf[0]
-            )
-
-            x1, y1, x2, y2 = map(
-                int,
-                box.xyxy[0]
-            )
-
-            x1 = max(0, min(x1, w - 1))
-            y1 = max(0, min(y1, h - 1))
-            x2 = max(0, min(x2, w - 1))
-            y2 = max(0, min(y2, h - 1))
-
-            # ====================================================
-            # PERSON + FACE RECOGNITION
-            # ====================================================
-
-            if cls_id == PERSON:
-
-                person_count += 1
-
-                box_color = (
-                    0,
-                    255,
-                    0
-                )
-
-                label = (
-                    f"PERSON {confidence:.2f}"
-                )
-
-                # --------------------------------------------
-                # ACTUAL FACE RECOGNITION
-                # --------------------------------------------
-
-                try:
-
-                    person_roi = img[
-                        y1:y2,
-                        x1:x2
-                    ]
-
-                    face_result = recognize_face_from_person_roi(
-                        person_roi
-                    )
-
-                    if (
-                        face_result is not None
-                        and
-                        face_result.get(
-                            "matched",
-                            False
-                        )
-                    ):
-
-                        similarity = float(
-                            face_result.get(
-                                "similarity",
-                                0.0
-                            )
-                        )
-
-                        name = face_result.get(
-                            "display_name",
-                            "UNKNOWN"
-                        )
-
-                        if similarity > best_similarity:
-
-                            best_similarity = similarity
-
-                            best_name = name
-
-                        label = (
-                            f"{name} "
-                            f"{similarity:.3f}"
-                        )
-
-                except Exception as e:
-
-                    print(
-                        "[FACE WEBRTC ERROR]",
-                        e
-                    )
-
-            # ====================================================
-            # VEHICLE
-            # ====================================================
-
-            elif cls_id in VEHICLE_CLASSES:
-
-                vehicle_count += 1
-
-                class_name = CLASS_NAMES.get(
-                    cls_id,
-                    "VEHICLE"
-                )
-
-                vehicle_names.append(
-                    class_name
-                )
-
-                box_color = (
-                    255,
-                    0,
-                    0
-                )
-
-                label = (
-                    f"{class_name} "
-                    f"{confidence:.2f}"
-                )
-
-            else:
-
-                continue
-
-            # ====================================================
-            # DRAW BOX
-            # ====================================================
-
-            cv2.rectangle(
-                annotated_frame,
-                (x1, y1),
-                (x2, y2),
-                box_color,
-                3
-            )
-
-            # ====================================================
-            # LABEL BACKGROUND
-            # ====================================================
-
-            text_y = max(
-                28,
-                y1 - 8
-            )
-
-            (text_w, text_h), _ = cv2.getTextSize(
-                label,
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.65,
-                2
-            )
-
-            cv2.rectangle(
-                annotated_frame,
-                (
-                    x1,
-                    text_y - text_h - 8
-                ),
-                (
-                    x1 + text_w + 10,
-                    text_y
-                ),
-                box_color,
-                -1
-            )
-
-            cv2.putText(
-                annotated_frame,
-                label,
-                (
-                    x1 + 5,
-                    text_y - 5
-                ),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.65,
-                (0, 0, 0),
-                2,
-                cv2.LINE_AA
-            )
-
-        # ========================================================
-        # STATUS PANEL
-        # ========================================================
-
-        cv2.rectangle(
-            annotated_frame,
-            (10, 10),
-            (430, 125),
-            (20, 20, 20),
-            -1
-        )
-
-        cv2.putText(
-            annotated_frame,
-            f"PERSONS  : {person_count}",
-            (25, 40),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.65,
-            (255, 255, 255),
-            2
-        )
-
-        cv2.putText(
-            annotated_frame,
-            f"VEHICLES : {vehicle_count}",
-            (25, 70),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.65,
-            (255, 255, 255),
-            2
-        )
-
-        cv2.putText(
-            annotated_frame,
-            f"IDENTITY : {best_name}",
-            (25, 100),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.60,
-            (0, 255, 0),
-            2
-        )
-
-        # ========================================================
-        # WEBRTC TELEMETRY
-        # ========================================================
-
-        channel = self.channel_container.get(
-            "channel"
-        )
-
-        if (
-            channel
-            and
-            channel.readyState == "open"
-        ):
-
-            try:
-
-                vehicle_display = (
-                    vehicle_names[0]
-                    if vehicle_names
-                    else "NONE"
-                )
-
-                channel.send(
-                    json.dumps({
-                        "persons": person_count,
-                        "vehicles": vehicle_count,
-
-                        "display_name": best_name,
-
-                        "similarity": best_similarity,
-
-                        "vehicle_name": vehicle_display,
-
-                        "vehicle_count": vehicle_count,
-
-                        "status": "SYSTEM MONITORING"
-                    })
-                )
-
-            except Exception as e:
-
-                print(
-                    "[TELEMETRY ERROR]",
-                    e
-                )
-
-        # ========================================================
-        # RETURN
-        # ========================================================
-
-        new_frame = VideoFrame.from_ndarray(
-            annotated_frame,
-            format="bgr24"
-        )
-
-        new_frame.pts = frame.pts
-        new_frame.time_base = frame.time_base
-
-        return new_frame
-    
 # ============================================================
 # IBVAP - INTELLIGENT BORDER VIDEO ANALYTICS
 # STABLE PERSON + VEHICLE DETECTION VERSION
@@ -461,9 +72,9 @@ FACE_EMBEDDINGS_FILE = os.path.join(BASE_DIR, "data", "face_embeddings.pkl")
 FACE_DB_PATH = Path(os.path.join(BASE_DIR, "data", "surveillance.db"))
 FACE_DETECTION_CONFIDENCE = 0.35
 FACE_MATCH_THRESHOLD = 0.40
-FACE_RECOGNITION_INTERVAL = 2.00
+FACE_RECOGNITION_INTERVAL = 3.00
 FACE_IDENTITY_TIMEOUT = 4.0
-FACE_MAX_ROI_SIZE = 640
+FACE_MAX_ROI_SIZE = 448
 
 SERVER_HOST = "0.0.0.0"
 SERVER_PORT = 8443
@@ -489,10 +100,21 @@ AUTO_START_CLOUDFLARE = True
 # Increased from 0.25 to reduce false detections.
 CONFIDENCE = 0.40
 
-IMAGE_SIZE = 256
+IMAGE_SIZE = 320
 
-# Process every frame.
-PROCESS_EVERY_N_FRAMES = 4
+# Adaptive inference: use every frame on CUDA, every 2nd frame on CPU.
+if torch is not None and torch.cuda.is_available():
+    INFERENCE_DEVICE = 0
+    YOLO_HALF = True
+    PROCESS_EVERY_N_FRAMES = 1
+    try:
+        torch.backends.cudnn.benchmark = True
+    except Exception:
+        pass
+else:
+    INFERENCE_DEVICE = "cpu"
+    YOLO_HALF = False
+    PROCESS_EVERY_N_FRAMES = 2
 
 
 # ============================================================
@@ -983,278 +605,134 @@ def recognize_face_from_person_roi(person_roi):
     global face_recognizer
     global face_database
 
-    print("[FACE DEBUG] Function called")
-
-    if face_detector is None:
-        print("[FACE DEBUG] face_detector is None")
-        return None
-
-    if face_recognizer is None:
-        print("[FACE DEBUG] face_recognizer is None")
+    if face_detector is None or face_recognizer is None:
         return None
 
     if not face_database:
-        print("[FACE DEBUG] face_database is EMPTY")
         return None
 
     if person_roi is None or person_roi.size == 0:
-        print("[FACE DEBUG] person_roi is EMPTY")
         return None
 
     try:
         roi_height, roi_width = person_roi.shape[:2]
 
-        print(
-            f"[FACE DEBUG] Person ROI: "
-            f"{roi_width}x{roi_height}"
-        )
-
         if roi_width < 30 or roi_height < 30:
-            print("[FACE DEBUG] ROI TOO SMALL")
             return None
 
-        # -------------------------------------------------
-        # FACE DETECTION IMAGE
-        # -------------------------------------------------
+        # Prefer the upper part of the detected person box because the
+        # face is normally located there. This gives YuNet more pixels
+        # for the face than running detection over the whole body ROI.
+        # Fall back to the complete person ROI if needed.
+        candidate_rois = []
+        upper_h = max(30, int(roi_height * 0.72))
+        candidate_rois.append(person_roi[:upper_h, :])
+        if upper_h < roi_height:
+            candidate_rois.append(person_roi)
 
-        detection_image = cv2.resize(
-            person_roi,
-            (320, 320),
-            interpolation=cv2.INTER_LINEAR
-        )
+        face_roi = None
+        for candidate_roi in candidate_rois:
+            if candidate_roi is None or candidate_roi.size == 0:
+                continue
+            ch, cw = candidate_roi.shape[:2]
+            scale = min(1.0, FACE_MAX_ROI_SIZE / float(max(cw, ch)))
+            if scale < 1.0:
+                new_w = max(30, int(cw * scale))
+                new_h = max(30, int(ch * scale))
+                candidate_roi = cv2.resize(
+                    candidate_roi,
+                    (new_w, new_h),
+                    interpolation=cv2.INTER_AREA
+                )
+            face_roi = candidate_roi
 
-        with face_model_lock:
+            face_height, face_width = face_roi.shape[:2]
+            with face_model_lock:
+                face_detector.setInputSize((face_width, face_height))
+                _, faces = face_detector.detect(face_roi)
 
-            face_detector.setInputSize(
-                (320, 320)
-            )
-
-            _, faces = face_detector.detect(
-                detection_image
-            )
+            if faces is not None and len(faces) > 0:
+                break
+        else:
+            return None
 
         if faces is None or len(faces) == 0:
-
-            print(
-                "[FACE DEBUG] YuNet: NO FACE FOUND"
-            )
-
             return None
-
-        print(
-            f"[FACE DEBUG] YuNet: "
-            f"{len(faces)} face(s) found"
-        )
-
-        # -------------------------------------------------
-        # FIND LARGEST FACE
-        # -------------------------------------------------
 
         largest_face = None
         largest_area = 0
 
         for face in faces:
-
             x, y, w, h = face[:4]
-
-            x = int(x)
-            y = int(y)
             w = int(w)
             h = int(h)
-
             if w <= 0 or h <= 0:
                 continue
-
             area = w * h
-
             if area > largest_area:
-
                 largest_area = area
-                largest_face = face.copy()
+                largest_face = face
 
         if largest_face is None:
-
-            print(
-                "[FACE DEBUG] No valid face"
-            )
-
             return None
 
-        # -------------------------------------------------
-        # IMPORTANT:
-        # YuNet detected on 320x320.
-        # Convert coordinates back to original ROI.
-        # -------------------------------------------------
-
-        scale_x = roi_width / 320.0
-        scale_y = roi_height / 320.0
-
-        largest_face[0] *= scale_x
-        largest_face[1] *= scale_y
-        largest_face[2] *= scale_x
-        largest_face[3] *= scale_y
-
-        print(
-            "[FACE DEBUG] Face box:",
-            [
-                round(float(largest_face[0]), 1),
-                round(float(largest_face[1]), 1),
-                round(float(largest_face[2]), 1),
-                round(float(largest_face[3]), 1)
-            ]
-        )
-
-        # -------------------------------------------------
-        # FACE ALIGNMENT + FEATURE
-        # -------------------------------------------------
-
         with face_model_lock:
-
             aligned_face = face_recognizer.alignCrop(
-                detection_image,
+                face_roi,
                 largest_face
             )
-
             feature = face_recognizer.feature(
                 aligned_face
             )
 
         if feature is None:
-
-            print(
-                "[FACE DEBUG] Feature generation FAILED"
-            )
-
             return None
-
-        print(
-            f"[FACE DEBUG] Feature generated: "
-            f"shape={feature.shape}"
-        )
-
-        # -------------------------------------------------
-        # COPY DATABASE
-        # -------------------------------------------------
 
         with face_database_lock:
-
-            database_copy = dict(
-                face_database
-            )
-
-        if not database_copy:
-
-            print(
-                "[FACE DEBUG] Database empty after copy"
-            )
-
-            return None
-
-        # -------------------------------------------------
-        # COMPARE
-        # -------------------------------------------------
+            database_copy = dict(face_database)
 
         best_person_code = None
         best_similarity = -1.0
 
+        # One lock for all six comparisons instead of one lock per comparison.
         with face_model_lock:
-
             for person_code, person_data in database_copy.items():
-
-                if not isinstance(
-                    person_data,
-                    dict
-                ):
+                if not isinstance(person_data, dict):
                     continue
 
-                registered_feature = (
-                    person_data.get("feature")
-                )
-
+                registered_feature = person_data.get("feature")
                 if registered_feature is None:
-
-                    print(
-                        f"[FACE DEBUG] "
-                        f"{person_code}: no feature"
-                    )
-
                     continue
 
                 try:
-
                     similarity = face_recognizer.match(
                         feature,
                         registered_feature,
                         cv2.FaceRecognizerSF_FR_COSINE
                     )
+                    similarity = float(similarity)
+                except Exception:
+                    continue
 
-                    similarity = float(
-                        similarity
-                    )
-
-                    print(
-                        f"[FACE DEBUG] "
-                        f"{person_code} -> "
-                        f"{person_data.get('name', person_code)} "
-                        f": {similarity:.3f}"
-                    )
-
-                    if similarity > best_similarity:
-
-                        best_similarity = similarity
-                        best_person_code = person_code
-
-                except Exception as e:
-
-                    print(
-                        f"[FACE DEBUG] "
-                        f"Comparison error {person_code}: {e}"
-                    )
-
-        # -------------------------------------------------
-        # NO DATABASE MATCH
-        # -------------------------------------------------
+                if similarity > best_similarity:
+                    best_similarity = similarity
+                    best_person_code = person_code
 
         if best_person_code is None:
-
-            print(
-                "[FACE DEBUG] No valid database match"
-            )
-
             return {
                 "matched": False,
                 "person_code": None,
                 "display_name": "UNKNOWN PERSON",
                 "similarity": best_similarity
             }
-
-        # -------------------------------------------------
-        # THRESHOLD
-        # -------------------------------------------------
-
-        print(
-            f"[FACE DEBUG] BEST MATCH: "
-            f"{best_person_code} "
-            f"similarity={best_similarity:.3f} "
-            f"threshold={FACE_MATCH_THRESHOLD:.3f}"
-        )
 
         if best_similarity < FACE_MATCH_THRESHOLD:
-
-            print(
-                "[FACE DEBUG] BELOW THRESHOLD"
-            )
-
             return {
                 "matched": False,
                 "person_code": None,
                 "display_name": "UNKNOWN PERSON",
                 "similarity": best_similarity
             }
-
-        # -------------------------------------------------
-        # SUCCESS
-        # -------------------------------------------------
 
         person_data = database_copy.get(
             best_person_code,
@@ -1266,12 +744,6 @@ def recognize_face_from_person_roi(person_roi):
             best_person_code
         )
 
-        print(
-            f"[FACE DEBUG] MATCHED: "
-            f"{display_name} "
-            f"{best_similarity:.3f}"
-        )
-
         return {
             "matched": True,
             "person_code": best_person_code,
@@ -1280,12 +752,30 @@ def recognize_face_from_person_roi(person_roi):
         }
 
     except Exception as e:
-
         print(
-            f"[FACE DEBUG] "
-            f"{type(e).__name__}: {e}"
+            f"[{type(e).__name__}] Face recognition error: {e}"
         )
+        return None
 
+def get_vehicle_display_name(vehicle_code):
+    """Return a human-readable vehicle name/registration from the SQLite DB."""
+    try:
+        if not FACE_DB_PATH.exists():
+            return None
+        conn = sqlite3.connect(str(FACE_DB_PATH), timeout=0.2)
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT registration_number, model, color, vehicle_type FROM vehicles WHERE vehicle_code = ? LIMIT 1",
+            (vehicle_code,)
+        )
+        row = cur.fetchone()
+        conn.close()
+        if not row:
+            return None
+        reg, model, color, vtype = row
+        parts = [str(x) for x in (reg, model) if x]
+        return " | ".join(parts) if parts else vehicle_code
+    except Exception:
         return None
 
 # ============================================================
@@ -1649,10 +1139,6 @@ def recognize_person_track(
     result = recognize_face_from_person_roi(
         person_roi
     )
-    print(
-    "[FACE DEBUG]",
-    result
-)
 
     if result is not None:
         session.person_identity[track_id] = result
@@ -2506,18 +1992,6 @@ class CameraSession:
     )
 
     processed_count: int = 0
-
-    # ========================================================
-    # LIVE DASHBOARD AI STATE
-    # ========================================================
-
-    dashboard_persons: int = 0
-    dashboard_vehicles: int = 0
-
-    dashboard_person_name: str = "UNKNOWN"
-    dashboard_person_similarity: float = 0.0
-
-    dashboard_person_last_seen: float = 0.0
 
     # Pre-encoded latest JPEG for zero-backlog dashboard streaming
     latest_jpeg: bytes = None
@@ -3730,6 +3204,94 @@ def confirm_person_track(
 
 
 # ============================================================
+# DIGITAL GEOFENCE
+# ============================================================
+# Per-camera normalized polygon. Coordinates are stored as 0..1 so
+# the fence remains correct when the camera resolution changes.
+geofence_lock = threading.Lock()
+geofences = {}
+geofence_last_alert = {}
+GEOFENCE_SNAPSHOT_DIR = "breach_snapshots"
+GEOFENCE_LOG_FILE = "surveillance_logs.txt"
+os.makedirs(GEOFENCE_SNAPSHOT_DIR, exist_ok=True)
+
+def get_geofence(camera_id):
+    with geofence_lock:
+        data = geofences.get(camera_id, {"points": [], "locked": False, "breach": False})
+        return {"points": [list(p) for p in data.get("points", [])], "locked": bool(data.get("locked", False)), "breach": bool(data.get("breach", False))}
+
+def set_geofence(camera_id, points, locked=True):
+    clean = []
+    for p in points:
+        try:
+            x = max(0.0, min(1.0, float(p[0])))
+            y = max(0.0, min(1.0, float(p[1])))
+            clean.append([x, y])
+        except Exception:
+            continue
+    if len(clean) < 3:
+        raise ValueError("At least 3 points are required for a geofence.")
+    with geofence_lock:
+        geofences[camera_id] = {"points": clean, "locked": bool(locked), "breach": False}
+    return get_geofence(camera_id)
+
+def reset_geofence(camera_id):
+    with geofence_lock:
+        geofences[camera_id] = {"points": [], "locked": False, "breach": False}
+    return get_geofence(camera_id)
+
+def draw_and_check_geofence(output, camera_id, person_boxes, width, height):
+    data = get_geofence(camera_id)
+    points = data["points"]
+    locked = data["locked"]
+    if len(points) < 3:
+        return False
+
+    pts = np.array([(int(x * width), int(y * height)) for x, y in points], dtype=np.int32)
+    overlay = output.copy()
+    cv2.fillPoly(overlay, [pts.reshape((-1, 1, 2))], (0, 0, 180))
+    cv2.addWeighted(overlay, 0.16 if locked else 0.08, output, 0.84 if locked else 0.92, 0, output)
+    cv2.polylines(output, [pts.reshape((-1, 1, 2))], True, (0, 0, 255) if locked else (0, 255, 255), 3)
+
+    breach = False
+    if locked:
+        for candidate in person_boxes:
+            x1, y1, x2, y2 = candidate["box"]
+            # Check head/top-center and torso/center points.
+            for px, py in (((x1 + x2) * 0.5, y1 + (y2 - y1) * 0.12), ((x1 + x2) * 0.5, (y1 + y2) * 0.5)):
+                if cv2.pointPolygonTest(pts.reshape((-1, 1, 2)), (float(px), float(py)), False) >= 0:
+                    breach = True
+                    break
+            if breach:
+                break
+
+    with geofence_lock:
+        if camera_id in geofences:
+            geofences[camera_id]["breach"] = breach
+
+    if breach:
+        now = time.time()
+        last = geofence_last_alert.get(camera_id, 0.0)
+        if now - last >= 3.0:
+            geofence_last_alert[camera_id] = now
+            stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            snapshot_path = os.path.join(GEOFENCE_SNAPSHOT_DIR, f"breach_{camera_id}_{stamp}.jpg")
+            try:
+                cv2.imwrite(snapshot_path, output)
+                with open(GEOFENCE_LOG_FILE, "a", encoding="utf-8") as f:
+                    f.write(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] ALERT: Geofence breach | Camera: {camera_id}\n")
+                if winsound is not None:
+                    winsound.Beep(2500, 180)
+            except Exception as e:
+                print(f"[GEOFENCE] Alert save error: {e}")
+
+    label = "GEOFENCE: BREACH DETECTED" if breach else ("GEOFENCE: LOCKED" if locked else "GEOFENCE: DRAWING")
+    color = (0, 0, 255) if breach else ((0, 0, 255) if locked else (0, 255, 255))
+    cv2.putText(output, label, (20, max(25, height - 20)), cv2.FONT_HERSHEY_SIMPLEX, 0.65, color, 2)
+    return breach
+
+
+# ============================================================
 # PROCESS FRAME
 # ============================================================
 def process_frame(
@@ -3774,6 +3336,10 @@ def process_frame(
 
                 iou=0.50,
 
+                device=INFERENCE_DEVICE,
+
+                half=YOLO_HALF,
+
                 verbose=False
 
             )
@@ -3788,68 +3354,22 @@ def process_frame(
             f"YOLO error: {e}"
 
         )
-        session.latest_vehicle_info = latest_vehicle_info
-        # ========================================================
-        # UPDATE LIVE DASHBOARD TELEMETRY
-        # ========================================================
 
-        global latest_dashboard_stats
-
-        latest_dashboard_stats["persons"] = int(
-            person_count
-        )
-
-        latest_dashboard_stats["vehicles"] = int(
-            vehicle_count
-        )
-
-        latest_dashboard_stats["display_name"] = (
-            best_name
-            if best_name
-            and best_name not in (
-                "UNKNOWN",
-                "UNKNOWN PERSON",
-            )
-            else latest_dashboard_stats["display_name"]
-        )
-
-        latest_dashboard_stats["similarity"] = float(
-            best_similarity
-        )
-
-        if latest_vehicle_info is not None:
-            latest_dashboard_stats["vehicle_name"] = (
-                latest_vehicle_info.get(
-                    "vehicle_name",
-                    latest_vehicle_info.get(
-                        "vehicle_class",
-                        "NONE"
-                    )
-                )
-            )
-
-        latest_dashboard_stats["status"] = (
-            "SYSTEM MONITORING"
-        )
-        
         return output
-        
 
 
     current_ids = set()
 
 
     vehicle_count = 0
-    latest_vehicle_info = None
+
     person_count = 0
 
 
     person_candidates = []
-    vehicle_candidates = []
 
-    best_name = "UNKNOWN"
-    best_similarity = 0.0
-    latest_vehicle_info = None
+
+    vehicle_candidates = []
 
 
     # ========================================================
@@ -4013,6 +3533,14 @@ def process_frame(
 
     )
 
+    geofence_breach = draw_and_check_geofence(
+        output,
+        session.camera_id,
+        person_candidates,
+        w,
+        h
+    )
+
 
     # ========================================================
     # DRAW PERSONS
@@ -4130,7 +3658,9 @@ def process_frame(
             )
 
         )
-            # ========================================================
+
+
+        # ========================================================
         # FACE RECOGNITION ADD-ON
         # Existing YOLO person detection and tracking remain intact.
         # ========================================================
@@ -4145,20 +3675,6 @@ def process_frame(
             sy2
         )
 
-        if face_result is not None and face_result.get("matched", False):
-            similarity = float(
-                face_result.get("similarity", 0.0)
-            )
-
-            if similarity > best_similarity:
-                best_similarity = similarity
-                best_name = face_result.get(
-                    "display_name",
-                    "UNKNOWN"
-                )
-
-
-       
 
         cx = int(
 
@@ -4332,9 +3848,6 @@ def process_frame(
     # ========================================================
     # DRAW VEHICLES
     # ========================================================
-            # ========================================================
-    # DRAW VEHICLES
-    # ========================================================
 
     for candidate in vehicle_candidates:
 
@@ -4354,138 +3867,139 @@ def process_frame(
             "class_id"
         ]
 
+
         box = smooth_box(
+
             session,
+
             track_id,
+
             (
+
                 x1,
+
                 y1,
+
                 x2,
+
                 y2
+
             )
+
         )
+
 
         sx1, sy1, sx2, sy2 = map(
+
             int,
+
             box
+
         )
 
+
         sx1 = max(
+
             0,
+
             min(
                 sx1,
                 w - 1
             )
+
         )
 
+
         sy1 = max(
+
             0,
+
             min(
                 sy1,
                 h - 1
             )
+
         )
 
+
         sx2 = max(
+
             0,
+
             min(
                 sx2,
                 w - 1
             )
+
         )
 
+
         sy2 = max(
+
             0,
+
             min(
                 sy2,
                 h - 1
             )
+
         )
+
 
         cx = int(
+
             (sx1 + sx2) / 2
+
         )
 
+
         cy = int(
+
             (sy1 + sy2) / 2
+
         )
+
 
         vehicle_count += 1
 
+
         class_name = CLASS_NAMES.get(
+
             cls_id,
+
             "VEHICLE"
+
         )
 
-        vehicle_info = recognize_vehicle_track(
-            session,
-            track_id,
-            frame,
-            sx1,
-            sy1,
-            sx2,
-            sy2
-        )
 
-        if vehicle_info is not None:
-            latest_vehicle_info = vehicle_info
-
-            print(
-                "[ANPR DEBUG]",
-                vehicle_info
-            )
-
-        # Save best vehicle crop
+        # Save best vehicle crop.
         save_vehicle_crop(
+
             session,
+
             frame,
+
             track_id,
+
             (
+
                 sx1,
+
                 sy1,
+
                 sx2,
+
                 sy2
+
             ),
+
             class_name,
+
             confidence
+
         )
 
-        # BLUE vehicle box
-        box_color = (
-            255,
-            0,
-            0
-        )
 
-        cv2.rectangle(
-            output,
-            (
-                sx1,
-                sy1
-            ),
-            (
-                sx2,
-                sy2
-            ),
-            box_color,
-            2
-        )
-
-        cv2.circle(
-            output,
-            (
-                cx,
-                cy
-            ),
-            5,
-            (
-                0,
-                255,
-                255
-            ),
-            -1
-        )
-    
         # BLUE vehicle box.
         box_color = (
 
@@ -4629,104 +4143,7 @@ def process_frame(
             sy2
 
         )
-        # ========================================================
-    # LIVE DASHBOARD AI STATE
-    # ========================================================
 
-    session.dashboard_persons = int(
-        person_count
-    )
-
-    session.dashboard_vehicles = int(
-        vehicle_count
-    )
-
-    best_dashboard_name = (
-        session.dashboard_person_name
-    )
-
-    best_dashboard_similarity = float(
-        session.dashboard_person_similarity
-    )
-
-    # Search all currently cached recognized faces
-    try:
-        for track_id, face_result in (
-            session.person_identity.items()
-        ):
-
-            if not isinstance(
-                face_result,
-                dict
-            ):
-                continue
-
-            if not face_result.get(
-                "matched",
-                False
-            ):
-                continue
-
-            name = face_result.get(
-                "display_name",
-                "UNKNOWN"
-            )
-
-            similarity = float(
-                face_result.get(
-                    "similarity",
-                    0.0
-                )
-            )
-
-            if (
-                name
-                and name not in (
-                    "UNKNOWN",
-                    "UNKNOWN PERSON",
-                )
-                and similarity
-                >= best_dashboard_similarity
-            ):
-                best_dashboard_name = name
-                best_dashboard_similarity = (
-                    similarity
-                )
-                session.dashboard_person_last_seen = (
-                    time.time()
-                )
-
-    except Exception as e:
-        print(
-            f"[{session.camera_id}] "
-            f"Dashboard AI state error: {e}"
-        )
-
-    # Keep the last valid identity briefly
-    # so the dashboard does not jump to UNKNOWN
-    # between recognition frames.
-
-    if (
-        time.time()
-        -
-        session.dashboard_person_last_seen
-        <= 3.0
-    ):
-        session.dashboard_person_name = (
-            best_dashboard_name
-        )
-
-        session.dashboard_person_similarity = (
-            best_dashboard_similarity
-        )
-    else:
-        session.dashboard_person_name = (
-            "UNKNOWN"
-        )
-
-        session.dashboard_person_similarity = (
-            0.0
-        )
 
     # ========================================================
     # CLEAN OLD TRACK DATA
@@ -5133,18 +4550,15 @@ def process_frame(
     )
 
 
-    # ========================================================
-    # LIVE DASHBOARD DATA
-    # ========================================================
-
-    session.person_count = int(person_count)
-    session.vehicle_count = int(vehicle_count)
-
     session.processed_count += 1
+
     session.frame_width = w
+
     session.frame_height = h
 
+
     return output
+
 
 # ============================================================
 # CAMERA PROCESSING WORKER
@@ -7322,8 +6736,26 @@ async def webrtc_config_handler(request):
 
 
 # ============================================================
-# API CAMERAS
+# GEOFENCE API
 # ============================================================
+
+async def geofence_get_handler(request):
+    camera_id = request.match_info["camera_id"]
+    return web.json_response(get_geofence(camera_id))
+
+async def geofence_set_handler(request):
+    camera_id = request.match_info["camera_id"]
+    try:
+        payload = await request.json()
+        result = set_geofence(camera_id, payload.get("points", []), payload.get("locked", True))
+        return web.json_response({"success": True, **result})
+    except Exception as e:
+        return web.json_response({"success": False, "error": str(e)}, status=400)
+
+async def geofence_reset_handler(request):
+    camera_id = request.match_info["camera_id"]
+    return web.json_response({"success": True, **reset_geofence(camera_id)})
+
 
 # ============================================================
 # API CAMERAS
@@ -7333,21 +6765,33 @@ async def cameras_handler(request):
 
     result = []
 
+
     with sessions_lock:
+
         current_sessions = list(
+
             sessions.values()
+
         )
+
 
     for session in current_sessions:
 
         last_frame_age = None
 
+
         if session.last_frame_time > 0:
+
             last_frame_age = (
+
                 time.time()
+
                 -
+
                 session.last_frame_time
+
             )
+
 
         result.append({
 
@@ -7361,29 +6805,19 @@ async def cameras_handler(request):
                 session.active,
 
             "fps":
-                float(
-                    session.fps
-                ),
+                session.fps,
 
             "events":
-                int(
-                    session.event_count
-                ),
+                session.event_count,
 
             "processed_frames":
-                int(
-                    session.processed_count
-                ),
+                session.processed_count,
 
             "width":
-                int(
-                    session.frame_width
-                ),
+                session.frame_width,
 
             "height":
-                int(
-                    session.frame_height
-                ),
+                session.frame_height,
 
             "connection_state":
                 session.connection_state,
@@ -7403,42 +6837,30 @@ async def cameras_handler(request):
             "track_error":
                 session.track_error,
 
-            # =================================================
-            # LIVE AI
-            # =================================================
+            # Latest recognized identity for this camera.
+            "display_name": next(
+                (v.get("display_name") for v in session.person_identity.values()
+                 if isinstance(v, dict) and v.get("matched")),
+                "UNKNOWN PERSON"
+            ),
+            "similarity": max(
+                [
+                    float(v.get("similarity", 0.0))
+                    for v in session.person_identity.values()
+                    if isinstance(v, dict) and v.get("matched")
+                ] or [0.0]
+            )
 
-            "persons":
-                int(
-                    session.dashboard_persons
-                ),
-
-            "vehicles":
-                int(
-                    session.dashboard_vehicles
-                ),
-
-            "display_name":
-                session.dashboard_person_name,
-
-            "similarity":
-                float(
-                    session.dashboard_person_similarity
-                ),
-
-            "vehicle_name":
-                "NONE",
-
-            "status":
-                (
-                    "SYSTEM MONITORING"
-                    if session.active
-                    else "SYSTEM IDLE"
-                ),
         })
 
+
     return web.json_response({
-        "cameras": result
+
+        "cameras":
+            result
+
     })
+
 
 # ============================================================
 # LAPTOP START API
@@ -7493,32 +6915,40 @@ async def laptop_stop_handler(request):
 # ============================================================
 
 async def offer_handler(request):
+
+    # --------------------------------------------------------
+    # READ OFFER
+    # --------------------------------------------------------
+
     try:
+
         params = await request.json()
-        offer = RTCSessionDescription(sdp=params["sdp"], type=params["type"])
 
-        pc = RTCPeerConnection()
-        channel_container = {"channel": None}
 
-        @pc.on("datachannel")
-        def on_datachannel(channel):
-            channel_container["channel"] = channel
+        offer = RTCSessionDescription(
 
-        @pc.on("track")
-        def on_track(track):
-            if track.kind == "video":
-                pc.addTrack(VideoTransformTrack(track, channel_container))
+            sdp=params["sdp"],
 
-        await pc.setRemoteDescription(offer)
-        answer = await pc.createAnswer()
-        await pc.setLocalDescription(answer)
+            type=params["type"]
 
-        return web.json_response({
-            "sdp": pc.localDescription.sdp,
-            "type": pc.localDescription.type
-        })
+        )
+
+
     except Exception as e:
-        return web.json_response({"error": str(e)}, status=500)
+
+        return web.json_response(
+
+            {
+
+                "error":
+                    f"Invalid offer: {e}"
+
+            },
+
+            status=400
+
+        )
+
 
     # --------------------------------------------------------
     # CAMERA LIMIT
@@ -7632,10 +7062,33 @@ async def offer_handler(request):
     # --------------------------------------------------------
 
     @pc.on("track")
+
     def on_track(track):
-        print(f"[{camera_id}] Received track: {track.kind}")
+
+        print(
+
+            f"[{camera_id}] "
+
+            f"Received track: "
+
+            f"{track.kind}"
+
+        )
+
+
         if track.kind == "video":
-            pc.addTrack(VideoTransformTrack(track))
+
+            asyncio.create_task(
+
+                read_phone_track(
+
+                    session,
+
+                    track
+
+                )
+
+            )
 
 
     # --------------------------------------------------------
@@ -8281,36 +7734,1794 @@ async def shutdown_server(app):
     )
 
 
+
+# ============================================================
+# EMBEDDED NEW FRONTEND
+# ============================================================
+EMBEDDED_FRONTEND_HTML = """<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Border Sentinel AI</title>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.26.0/babel.min.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-presets="react">
+const { useEffect, useMemo, useState } = React;
+
+// Simple React icon components matching the icons used by the original app.
+const iconSvg = (name, props={}) => {
+  const icons = {
+    Shield: '<path d="M20 13c0 5-3.5 7.5-8 9-4.5-1.5-8-4-8-9V5l8-3 8 3v8Z"/>',
+    Mail: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',
+    Lock: '<rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+    Eye: '<path d="M2.06 12.35a1 1 0 0 1 0-.7C3.82 7.48 7.55 5 12 5s8.18 2.48 9.94 6.65a1 1 0 0 1 0 .7C20.18 16.52 16.45 19 12 19s-8.18-2.48-9.94-6.65Z"/><circle cx="12" cy="12" r="3"/>',
+    EyeOff: '<path d="M9.88 9.88a3 3 0 0 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c4.45 0 8.18 2.48 9.94 6.65a1 1 0 0 1 0 .7 10.9 10.9 0 0 1-2.1 3.05"/><path d="M6.61 6.61A10.9 10.9 0 0 0 2.06 11.65a1 1 0 0 0 0 .7C3.82 16.52 7.55 19 12 19a10.5 10.5 0 0 0 5.39-1.5"/><line x1="2" y1="2" x2="22" y2="22"/>',
+    Moon: '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"/>',
+    Sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>'
+  };
+  return <span style={{display:"inline-flex",alignItems:"center",justifyContent:"center"}} dangerouslySetInnerHTML={{__html:
+    `<svg width="${props.size||24}" height="${props.size||24}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${props.strokeWidth||2}" stroke-linecap="round" stroke-linejoin="round">${icons[name]||""}</svg>`}} />;
+};
+const Shield=props=>iconSvg("Shield",props), Mail=props=>iconSvg("Mail",props),
+      Lock=props=>iconSvg("Lock",props), Eye=props=>iconSvg("Eye",props),
+      EyeOff=props=>iconSvg("EyeOff",props), Moon=props=>iconSvg("Moon",props),
+      Sun=props=>iconSvg("Sun",props);
+
+
+
+
+// =============================================================
+// BORDER SENTINEL — SINGLE SOURCE FILE
+// Merged: app.jsx + main.jsx + styles.css + mockData.js
+// =============================================================
+
+const cameras=[
+{id:'C-07',kind:'Person',confidence:94,time:'10:08:31 AM'},
+{id:'C-03',kind:'Vehicle',confidence:91,time:'10:07:42 AM'},
+{id:'C-11',kind:'Person',confidence:96,time:'10:06:19 AM'},
+{id:'C-02',kind:'Person',confidence:89,time:'10:05:33 AM'},
+{id:'C-09',kind:'Vehicle',confidence:93,time:'10:04:18 AM'},
+{id:'C-05',kind:'Person',confidence:87,time:'10:03:51 AM'}
+];
+const alerts=[
+{id:1,type:'HUMAN INTRUSION',camera:'C-07',confidence:94.8,level:'CRITICAL',time:'10:08:31 AM'},
+{id:2,type:'SUSPICIOUS ACTIVITY',camera:'C-01',confidence:87.3,level:'HIGH',time:'10:07:12 AM'},
+{id:3,type:'VEHICLE DETECTED',camera:'C-03',confidence:92.1,level:'MEDIUM',time:'10:06:19 AM'},
+{id:4,type:'PERSON DETECTED',camera:'C-04',confidence:88.6,level:'INFO',time:'10:05:33 AM'}
+];
+const persons=[{camera:'C-07',status:'Moving'},{camera:'C-04',status:'Stationary'},{camera:'C-09',status:'Moving'},{camera:'C-02',status:'Moving'},{camera:'C-11',status:'Moving'}];
+const vehicles=[{type:'Car',plate:'UP32 XX 1234',time:'10:07:42 AM'},{type:'Bike',plate:'UP32 AB 7812',time:'10:06:19 AM'},{type:'Bike',plate:'UP32 CD 4521',time:'10:05:33 AM'},{type:'Car',plate:'UP32 PQ 9087',time:'10:04:18 AM'},{type:'Bike',plate:'UP32 KL 6412',time:'10:03:51 AM'}];
+const events=[{time:'10:08:31 AM',event:'Human Intrusion',camera:'C-07',level:'CRITICAL'},{time:'10:07:42 AM',event:'Vehicle Detected',camera:'C-03',level:'MEDIUM'},{time:'10:06:19 AM',event:'Person Detected',camera:'C-04',level:'HIGH'},{time:'10:05:33 AM',event:'Suspicious Activity',camera:'C-09',level:'HIGH'},{time:'10:04:18 AM',event:'Vehicle Detected',camera:'C-11',level:'MEDIUM'}];
+
+
+const INLINE_CSS = `*{box-sizing:border-box}body{margin:0;font-family:Inter,Segoe UI,Arial,sans-serif;background:#06111d;color:#e8f1fa}button,input{font:inherit}.app{min-height:100vh;background:#06111d;color:#e8f1fa}header{height:70px;border-bottom:1px solid #17324a;background:#071725;display:flex;align-items:center;padding:0 22px;gap:25px}.header-brand{display:flex;align-items:center;gap:10px;min-width:260px;color:#eaf5ff}.header-brand b{font-size:15px;letter-spacing:.8px;display:block}.header-brand small{font-size:8px;color:#6e8aa0;letter-spacing:.5px}.header-brand>svg{color:#59bfff}.system-pill{font-size:10px;color:#6ee0a3;font-weight:700;letter-spacing:.5px}.online-dot{display:inline-block;width:7px;height:7px;background:#25d88b;border-radius:50%;box-shadow:0 0 9px #25d88b;margin-right:6px}.header-right{margin-left:auto;display:flex;align-items:center;gap:16px;font-size:10px;color:#7691a7}.date,.clock{color:#aac1d4}.mini{display:flex;align-items:center;gap:5px}.mini svg{color:#52d7a0}.mini b{color:#d8e7f3}.admin,.theme-btn{border:1px solid #1d3b55;background:#0b2032;color:#bcd1e0;border-radius:7px;padding:7px 10px;display:flex;align-items:center;gap:6px;cursor:pointer}.body{display:flex}aside{width:220px;min-height:calc(100vh - 70px);background:#071725;border-right:1px solid #17324a;padding:18px 10px}aside button{width:100%;background:none;border:0;color:#829bb0;padding:11px 12px;border-radius:7px;text-align:left;display:flex;align-items:center;gap:11px;cursor:pointer;font-size:12px;margin-bottom:4px}aside button:hover{background:#0c2539;color:#e5f4ff}aside button.active{background:#0b3453;color:#63c5ff;box-shadow:inset 3px 0 #38aef5}aside em{margin-left:auto;background:#e63955;color:#fff;font-style:normal;border-radius:10px;padding:2px 6px;font-size:9px}.mobile-menu,.mobile-close{display:none}main{padding:24px 28px;flex:1;min-width:0;overflow:hidden}.page-title{display:flex;justify-content:space-between;align-items:end;margin-bottom:22px}.page-title h1{font-size:23px;margin:0 0 5px}.page-title p{margin:0;color:#7590a5;font-size:11px}.crumb{font-size:10px;color:#658095;display:flex;align-items:center}.toolbar,.filters{display:flex;gap:8px;align-items:center;margin-bottom:15px;color:#829caf;font-size:10px}.toolbar .select{border:1px solid #1a3850;padding:7px 12px;border-radius:6px;color:#c4d8e6;margin-left:auto}.camera-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.camera-card{background:#081a2a;border:1px solid #19364d;border-radius:9px;overflow:hidden}.cam-head,.cam-foot{display:flex;justify-content:space-between;align-items:center;padding:9px 11px;font-size:10px}.cam-head{border-bottom:1px solid #17324a}.cam-head span{font-size:8px;color:#4be49a}.video-placeholder{height:165px;background:linear-gradient(135deg,#163b42,#1d4a39 45%,#132f38);position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center}.fake-scene{font-size:22px;font-weight:800;letter-spacing:3px;color:#ffffff17;transform:rotate(-10deg)}.scanline{position:absolute;top:38%;left:0;right:0;height:1px;background:#42ffad55;box-shadow:0 0 12px #42ffad77}.detect{position:absolute;top:28px;left:25px;border:2px solid #35e39a;padding:4px 7px;font-size:9px;color:#fff;background:#09261caa}.detect.person{border-color:#ff4c63}.detect.vehicle{border-color:#3bdf9d}.cam-foot{color:#9fb5c6}.cam-foot time{color:#617c91}.filters span{padding:7px 12px;border:1px solid #18364e;border-radius:5px}.filters .active-filter{background:#0b3655;color:#64c9ff}.filters .outline-btn{margin-left:auto}.outline-btn{background:#0a1b2b;border:1px solid #23506e;color:#b9d3e3;padding:8px 12px;border-radius:6px;cursor:pointer}.alert-layout{display:grid;grid-template-columns:1.4fr .8fr;gap:18px}.alert-list,.detail-card,.table-card,.status-card{background:#081a2a;border:1px solid #19364d;border-radius:9px}.alert-row{display:grid;grid-template-columns:38px 1fr auto auto;gap:10px;align-items:center;padding:14px;border-bottom:1px solid #153047}.alert-row:last-child{border-bottom:0}.alert-row b{display:block;font-size:11px}.alert-row small{display:block;color:#6f899d;font-size:9px;margin-top:4px}.alert-row strong{font-size:11px}.alert-icon{width:34px;height:34px;border-radius:50%;display:grid;place-items:center}.alert-icon.red{background:#5a1c2a;color:#ff6377}.alert-icon.orange{background:#54391b;color:#ffb34d}.alert-icon.blue{background:#123d5d;color:#58bfff}.badge{font-size:8px;padding:5px 7px;border-radius:4px;font-weight:800}.badge.critical{background:#5a1827;color:#ff6377}.badge.high{background:#5a3517;color:#ffb24c}.badge.medium{background:#183d59;color:#57bdfd}.badge.info{background:#1a3645;color:#76b9d7}.detail-card{padding:18px}.detail-card h2{font-size:15px;margin:12px 0}.detail-card p{font-size:10px;color:#7e96a9}.snapshot{height:150px;border-radius:7px;background:linear-gradient(135deg,#71808a,#364a52);display:grid;place-items:center;margin:12px 0;position:relative}.person-shape{width:35px;height:80px;border:2px solid #ff4b62;background:#0e152055}.actions{display:flex;gap:8px;margin-top:16px}.primary-btn{background:#087eea;border:0;color:white;padding:10px 17px;border-radius:6px;cursor:pointer;box-shadow:0 0 15px #087eea33}.stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:13px;margin-bottom:17px}.stat-grid.one{grid-template-columns:220px}.stat{background:#081a2a;border:1px solid #19364d;border-radius:9px;padding:14px;display:flex;align-items:center;gap:12px}.stat-icon{width:38px;height:38px;border-radius:7px;background:#0d3654;color:#54bfff;display:grid;place-items:center}.stat small,.status-card small{display:block;color:#6f899d;font-size:9px}.stat b{display:block;font-size:21px;margin-top:3px}.table-card{overflow:auto}.table-title{padding:15px;font-size:12px;font-weight:700;border-bottom:1px solid #19364d}.table-title span{float:right;color:#6c879b;font-size:9px;font-weight:400}table{width:100%;border-collapse:collapse;font-size:10px}th,td{text-align:left;padding:12px 15px;border-bottom:1px solid #153047}th{color:#648096;font-size:9px;text-transform:uppercase;letter-spacing:.4px}td{color:#b8cad8}.status{font-size:9px}.status.moving{color:#4ce2a0}.status.stationary{color:#ffbd50}.system-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:15px}.status-card{padding:20px;display:flex;gap:15px;align-items:center;color:#53c9a0}.status-card h2{margin:4px 0;font-size:19px;color:#e7f3fa}.status-card span{font-size:9px;color:#62d89d}.status-card i{display:inline-block;width:6px;height:6px;background:#4ee09b;border-radius:50%;margin-right:5px}.login-page{min-height:100vh;background:radial-gradient(circle at 50% 20%,#0c2b43,#040d17 65%);display:grid;place-items:center;position:relative;padding:20px}.login-theme{position:absolute;right:22px;top:22px}.login-card{width:min(420px,100%);background:#081a2a;border:1px solid #21445e;border-radius:14px;padding:34px;box-shadow:0 25px 80px #0008;text-align:left}.brand-mark{width:58px;height:58px;border:1px solid #2b6387;background:#0b2b43;color:#58c2ff;border-radius:14px;display:grid;place-items:center;margin:0 auto 12px}.login-card h1{text-align:center;font-size:18px;letter-spacing:1px;margin:0}.login-card>p{text-align:center;font-size:9px;color:#68869b;letter-spacing:.8px}.login-line{height:1px;background:#17364e;margin:25px 0}.login-card h2{font-size:19px;margin:0}.muted{margin:5px 0 22px!important;text-align:left!important;letter-spacing:0!important}.login-card form label{font-size:10px;color:#91aabd;display:block;margin:14px 0 7px}.input-wrap{display:flex;align-items:center;gap:8px;background:#061522;border:1px solid #1d3b53;border-radius:7px;padding:0 11px;color:#52758e}.input-wrap:focus-within{border-color:#2d9de3}.input-wrap input{width:100%;background:none;border:0;outline:0;color:#e8f1fa;padding:11px 0;font-size:11px}.icon-btn{border:0;background:none;color:#69859a;cursor:pointer;display:grid;place-items:center}.login-options{display:flex;justify-content:space-between;align-items:center;margin:14px 0;color:#668196;font-size:9px}.check{margin:0!important;display:flex!important;align-items:center;gap:5px}.login-options input{accent-color:#168ae5}.login-card .primary-btn{width:100%;margin-top:5px;padding:11px}.demo-note{text-align:center;color:#4f7188;font-size:8px;margin-top:17px}.theme-light .app{background:#eef3f7;color:#172b3b}.theme-light header,.theme-light aside{background:#fff;border-color:#d9e4eb}.theme-light aside button{color:#5c7384}.theme-light aside button.active{background:#e3f3ff;color:#0878c7}.theme-light main{background:#f3f6f9}.theme-light .camera-card,.theme-light .alert-list,.theme-light .detail-card,.theme-light .table-card,.theme-light .status-card,.theme-light .stat{background:#fff;border-color:#d9e4eb}.theme-light .cam-head{border-color:#d9e4eb}.theme-light .header-brand,.theme-light .mini b{color:#173047}.theme-light .system-pill{color:#159b68}.theme-light .theme-btn,.theme-light .admin,.theme-light .outline-btn{background:#fff;border-color:#cddce5;color:#446075}.theme-light .table-title, .theme-light th,.theme-light td,.theme-light .alert-row{border-color:#e1e9ee}.theme-light .page-title p,.theme-light .stat small,.theme-light th{color:#6f8595}.theme-light td{color:#314b5e}.theme-light .login-page{background:linear-gradient(135deg,#eaf4fa,#f7fbfd)}.theme-light .login-card{background:#fff;border-color:#cbdce7;color:#183145}.theme-light .input-wrap{background:#f7fafc;border-color:#cbdce7}.theme-light .input-wrap input{color:#193247}\n@media(max-width:1000px){.camera-grid{grid-template-columns:repeat(2,1fr)}.header-right .date,.header-right .clock,.header-right .mini{display:none}.alert-layout{grid-template-columns:1fr}.system-grid{grid-template-columns:1fr}}\n@media(max-width:700px){header{height:62px;padding:0 12px}.header-brand{min-width:auto}.header-brand small{display:none}.header-brand b{font-size:12px}.system-pill{display:none}.header-right{gap:6px}.admin{font-size:0;padding:7px}.admin svg{margin:0}.body aside{position:fixed;z-index:20;left:-230px;top:62px;transition:.2s;box-shadow:15px 0 40px #0008}.body aside.open{left:0}.mobile-menu{display:block;position:fixed;z-index:10;top:72px;left:12px;border:1px solid #24455e;background:#0a1e30;color:#8fb2c9;border-radius:6px;padding:6px}main{padding:60px 13px 20px}.camera-grid{grid-template-columns:1fr}.stat-grid{grid-template-columns:1fr}.stat-grid.one{grid-template-columns:1fr}.page-title{align-items:flex-start}.crumb{display:none}.alert-row{grid-template-columns:34px 1fr auto}.alert-row .badge{grid-column:3}.system-grid{grid-template-columns:1fr}}`;
+function InjectedStyles() {
+  return <style dangerouslySetInnerHTML={{__html: INLINE_CSS}} />;
+}
+
+
+const BACKEND = window.location.origin;
+
+function App() {
+  const [running, setRunning] = useState(false);
+  const [cameras, setCameras] = useState([]);
+  const [selectedCameraId, setSelectedCameraId] = useState(null);
+
+  const [stats, setStats] = useState({
+    personsCount: 0,
+    vehiclesCount: 0,
+    fps: 0,
+    recognizedName: "UNKNOWN",
+    recognitionConfidence: 0,
+    vehicleName: "NONE",
+    status: "SYSTEM IDLE",
+  });
+
+  const [error, setError] = useState("");
+  const [loadingCameras, setLoadingCameras] = useState(false);
+  const [geofencePoints, setGeofencePoints] = useState([]);
+  const [geofenceLocked, setGeofenceLocked] = useState(false);
+  const [drawingGeofence, setDrawingGeofence] = useState(false);
+  const [remoteCameraUrl, setRemoteCameraUrl] = useState("");
+  const [showRemoteCameraLink, setShowRemoteCameraLink] = useState(false);
+  const [remoteCameraLoading, setRemoteCameraLoading] = useState(false);
+
+  // ---------------------------------------------------------
+  // CAMERA LIST
+  // ---------------------------------------------------------
+
+  async function loadCameras() {
+  try {
+    setLoadingCameras(true);
+
+    const response = await fetch(
+      `${BACKEND}/api/cameras`,
+      {
+        cache: "no-store",
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        `Camera API error: ${response.status}`
+      );
+    }
+
+    const data = await response.json();
+
+    const cameraList = Array.isArray(data.cameras)
+      ? data.cameras
+      : [];
+
+    setCameras(cameraList);
+
+    // --------------------------------------------------
+    // SELECT FIRST CAMERA
+    // --------------------------------------------------
+
+    if (cameraList.length > 0) {
+      setSelectedCameraId((current) => {
+        const exists = cameraList.some(
+          (camera) =>
+            camera.camera_id === current
+        );
+
+        return exists
+          ? current
+          : cameraList[0].camera_id;
+      });
+    } else {
+      setSelectedCameraId(null);
+    }
+
+    // --------------------------------------------------
+    // DASHBOARD STATS
+    // --------------------------------------------------
+
+    let totalPersons = 0;
+    let totalVehicles = 0;
+    let totalFps = 0;
+    let fpsCameras = 0;
+
+    let bestName = "UNKNOWN";
+    let bestSimilarity = 0;
+    let bestVehicle = "NONE";
+
+    let hasLiveCamera = false;
+
+    for (const camera of cameraList) {
+      totalPersons += Number(
+        camera.persons ?? 0
+      );
+
+      totalVehicles += Number(
+        camera.vehicles ?? 0
+      );
+
+      const fps = Number(
+        camera.fps ?? 0
+      );
+
+      if (fps > 0) {
+        totalFps += fps;
+        fpsCameras += 1;
+      }
+
+      if (
+        camera.active &&
+        camera.video_received
+      ) {
+        hasLiveCamera = true;
+      }
+
+      const name =
+        camera.display_name;
+
+      const similarity = Number(
+        camera.similarity ?? 0
+      );
+
+      if (
+        name &&
+        name !== "UNKNOWN" &&
+        name !== "UNKNOWN PERSON" &&
+        similarity > bestSimilarity
+      ) {
+        bestName = name;
+        bestSimilarity = similarity;
+      }
+
+      if (
+        camera.vehicle_name &&
+        camera.vehicle_name !== "NONE"
+      ) {
+        bestVehicle =
+          camera.vehicle_name;
+      }
+    }
+
+    setStats({
+      personsCount: totalPersons,
+      vehiclesCount: totalVehicles,
+
+      fps:
+        fpsCameras > 0
+          ? totalFps / fpsCameras
+          : 0,
+
+      recognizedName: bestName,
+
+      recognitionConfidence:
+        bestSimilarity,
+
+      vehicleName: bestVehicle,
+
+      status: hasLiveCamera
+        ? "SYSTEM MONITORING"
+        : "SYSTEM IDLE",
+    });
+
+  } catch (err) {
+    console.error(
+      "Camera list error:",
+      err
+    );
+  } finally {
+    setLoadingCameras(false);
+  }
+}
+  // ---------------------------------------------------------
+  // START CENTRALIZED LAPTOP CAMERA
+  // ---------------------------------------------------------
+
+  async function startSurveillance() {
+  try {
+    setError("");
+    setRunning(true);
+
+    const response = await fetch(`${BACKEND}/api/laptop/start`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    const data = await response.json();
+
+    if (!response.ok || !data.success) {
+      throw new Error(data.message || "Unable to start laptop camera");
+    }
+
+    console.log("Laptop camera:", data.message);
+
+    setStats((prev) => ({
+      ...prev,
+      status: "SYSTEM MONITORING",
+    }));
+
+  } catch (err) {
+    console.error("Start surveillance error:", err);
+
+    setError(err.message || "Unable to start surveillance");
+    setRunning(false);
+  }
+}
+
+  // ---------------------------------------------------------
+  // STOP CENTRALIZED LAPTOP CAMERA
+  // ---------------------------------------------------------
+
+  async function stopSurveillance() {
+  try {
+    await fetch(`${BACKEND}/api/laptop/stop`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+  } catch (err) {
+    console.error("Stop camera error:", err);
+  }
+
+  setRunning(false);
+
+  setStats({
+    personsCount: 0,
+    vehiclesCount: 0,
+    fps: 0,
+    recognizedName: "UNKNOWN",
+    recognitionConfidence: 0,
+    vehicleName: "NONE",
+    status: "SYSTEM IDLE",
+  });
+}
+// ---------------------------------------------------------
+// REMOTE CAMERA
+// ---------------------------------------------------------
+
+async function openRemoteCameraPage() {
+  setRemoteCameraLoading(true);
+  setShowRemoteCameraLink(true);
+  setError("");
+
+  try {
+    // Use the same server that is currently serving this dashboard.
+    // /api/info returns the live Cloudflare URL when the tunnel is ready.
+    const response = await fetch("/api/info", {
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      throw new Error(`Unable to get remote camera link (${response.status})`);
+    }
+
+    const data = await response.json();
+    const url = data.phone_url || `${window.location.origin}/phone`;
+
+    setRemoteCameraUrl(url);
+  } catch (err) {
+    console.error("Remote camera URL error:", err);
+    setRemoteCameraUrl(`${window.location.origin}/phone`);
+  } finally {
+    setRemoteCameraLoading(false);
+  }
+}
+
+async function copyRemoteCameraUrl() {
+  if (!remoteCameraUrl) return;
+
+  try {
+    await navigator.clipboard.writeText(remoteCameraUrl);
+    alert("Remote camera link copied!");
+  } catch (err) {
+    console.error("Copy URL error:", err);
+  }
+}
+  // ---------------------------------------------------------
+  // POLLING
+  // ---------------------------------------------------------
+
+  useEffect(() => {
+  loadCameras();
+
+  const timer = setInterval(() => {
+    loadCameras();
+  }, 2000);
+
+  return () => {
+    clearInterval(timer);
+    
+  };
+}, []);
+
+  // ---------------------------------------------------------
+  // CLEANUP ON PAGE EXIT
+  // ---------------------------------------------------------
+
+  
+
+  // ---------------------------------------------------------
+  // SELECTED CAMERA
+  // ---------------------------------------------------------
+
+  const selectedCamera = useMemo(() => {
+    return cameras.find(
+      (camera) =>
+        camera.camera_id ===
+        selectedCameraId
+    );
+  }, [
+    cameras,
+    selectedCameraId,
+  ]);
+
+  const confidencePercent =
+    Number(
+      stats.recognitionConfidence || 0
+    ) * 100;
+
+  // ---------------------------------------------------------
+  // CAMERA FEED URL
+  // ---------------------------------------------------------
+
+  function getSnapshotUrl(cameraId) {
+    return `${BACKEND}/snapshot/${encodeURIComponent(
+      cameraId
+    )}`;
+  }
+
+  function getMjpegUrl(cameraId) {
+    return `${BACKEND}/mjpeg/${encodeURIComponent(
+      cameraId
+    )}`;
+  }
+
+  // ---------------------------------------------------------
+  // CAMERA CARD
+  // ---------------------------------------------------------
+
+  async function loadGeofence(cameraId) {
+    if (!cameraId) return;
+    try {
+      const r = await fetch(`${BACKEND}/api/geofence/${encodeURIComponent(cameraId)}`, { cache: "no-store" });
+      const d = await r.json();
+      setGeofencePoints(Array.isArray(d.points) ? d.points : []);
+      setGeofenceLocked(Boolean(d.locked));
+    } catch (e) { console.error("Geofence load error:", e); }
+  }
+
+  useEffect(() => {
+    loadGeofence(selectedCameraId);
+  }, [selectedCameraId]);
+
+  function handleGeofenceClick(e) {
+    if (!drawingGeofence || geofenceLocked) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    const y = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
+    setGeofencePoints(prev => [...prev, [x, y]]);
+  }
+
+  async function saveGeofence() {
+    if (!selectedCameraId || geofencePoints.length < 3) {
+      setError("Geofence needs at least 3 points.");
+      return;
+    }
+    try {
+      const r = await fetch(`${BACKEND}/api/geofence/${encodeURIComponent(selectedCameraId)}/set`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ points: geofencePoints, locked: true })
+      });
+      const d = await r.json();
+      if (!r.ok || !d.success) throw new Error(d.error || "Unable to save geofence");
+      setGeofenceLocked(true);
+      setDrawingGeofence(false);
+    } catch (e) { setError(e.message); }
+  }
+
+  async function resetGeofence() {
+    if (!selectedCameraId) return;
+    try {
+      await fetch(`${BACKEND}/api/geofence/${encodeURIComponent(selectedCameraId)}/reset`, { method: "POST" });
+      setGeofencePoints([]);
+      setGeofenceLocked(false);
+      setDrawingGeofence(false);
+    } catch (e) { setError(e.message); }
+  }
+
+  function CameraCard({ camera }) {
+    const cameraId = camera.camera_id;
+
+    const isLive =
+      Boolean(camera.video_received) ||
+      camera.active === true ||
+      camera.connection_state ===
+        "connected";
+
+    const fps = Number(
+      camera.fps ?? 0
+    );
+
+    return (
+      <div
+        onClick={() =>
+          setSelectedCameraId(cameraId)
+        }
+        style={{
+          background: "#111827",
+          border: "1px solid #243244",
+          borderRadius: "14px",
+          overflow: "hidden",
+          cursor: "pointer",
+          boxShadow:
+            selectedCameraId === cameraId
+              ? "0 0 0 2px #38bdf8"
+              : "0 8px 30px rgba(0,0,0,0.18)",
+        }}
+      >
+        {/* CAMERA HEADER */}
+        <div
+          style={{
+            padding:
+              "14px 16px 12px 16px",
+            display: "flex",
+            justifyContent:
+              "space-between",
+            alignItems: "center",
+            background:
+              "#0f172a",
+          }}
+        >
+          <div>
+            <div
+              style={{
+                fontSize: "18px",
+                fontWeight: 800,
+                color: "#f8fafc",
+              }}
+            >
+              {cameraId}
+            </div>
+
+            <div
+              style={{
+                marginTop: "3px",
+                fontSize: "12px",
+                color: "#94a3b8",
+                textTransform:
+                  "uppercase",
+              }}
+            >
+              {camera.source_type ||
+                "REMOTE CAMERA"}
+            </div>
+          </div>
+
+          <div
+            style={{
+              color: isLive
+                ? "#22c55e"
+                : "#f59e0b",
+              fontWeight: 800,
+              fontSize: "13px",
+            }}
+          >
+            ● {isLive
+              ? "LIVE"
+              : "CONNECTING"}
+          </div>
+        </div>
+
+        {/* LIVE CAMERA + EXACT-ASPECT GEOFENCE CANVAS */}
+        {(() => {
+          const feedW = Number(camera.width || 640);
+          const feedH = Number(camera.height || 480);
+          const feedAspect = feedW / Math.max(1, feedH);
+          return (
+            <div
+              style={{ width: "100%", background: "#020617", display: "flex", justifyContent: "center", overflow: "hidden" }}
+            >
+              <div
+                onClick={(e) => {
+                  // Allow the camera feed itself to select a remote camera.
+                  // Previously stopPropagation() prevented an unselected
+                  // remote camera card from becoming selected, so its
+                  // geofence controls could never appear.
+                  e.stopPropagation();
+                  if (cameraId !== selectedCameraId) {
+                    setSelectedCameraId(cameraId);
+                    setDrawingGeofence(false);
+                    setGeofencePoints([]);
+                    setGeofenceLocked(false);
+                    setError("");
+                    return;
+                  }
+                  handleGeofenceClick(e);
+                }}
+                style={{
+                  position: "relative",
+                  width: "100%",
+                  maxWidth: "100%",
+                  aspectRatio: feedAspect,
+                  background: "#020617",
+                  overflow: "hidden",
+                  cursor: cameraId === selectedCameraId && drawingGeofence ? "crosshair" : "default"
+                }}
+              >
+                <img
+                  src={getMjpegUrl(cameraId)}
+                  alt={`${cameraId} surveillance feed`}
+                  loading="eager"
+                  style={{ width: "100%", height: "100%", objectFit: "fill", display: "block" }}
+                />
+                {cameraId === selectedCameraId && geofencePoints.length >= 1 && (
+                  <svg
+                    viewBox="0 0 1 1"
+                    preserveAspectRatio="none"
+                    style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none" }}
+                  >
+                    {geofencePoints.length >= 3 && (
+                      <polygon
+                        points={geofencePoints.map(p => `${p[0]},${p[1]}`).join(" ")}
+                        fill="rgba(255,0,0,0.14)"
+                        stroke={geofenceLocked ? "#ff334d" : "#ffd43b"}
+                        strokeWidth="0.006"
+                      />
+                    )}
+                    {geofencePoints.length >= 2 && (
+                      <polyline
+                        points={geofencePoints.map(p => `${p[0]},${p[1]}`).join(" ")}
+                        fill="none"
+                        stroke={geofenceLocked ? "#ff334d" : "#ffd43b"}
+                        strokeWidth="0.006"
+                      />
+                    )}
+                    {geofencePoints.map((p,i) => (
+                      <circle key={i} cx={p[0]} cy={p[1]} r="0.012" fill="#fff" stroke="#ff334d" strokeWidth="0.004" />
+                    ))}
+                  </svg>
+                )}
+              </div>
+            </div>
+          );
+        })()}
+        {cameraId !== selectedCameraId && (
+          <div style={{ display: "flex", gap: "8px", padding: "10px", background: "#0b1220" }}>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setSelectedCameraId(cameraId);
+                setDrawingGeofence(false);
+                setGeofencePoints([]);
+                setGeofenceLocked(false);
+                setError("");
+              }}
+              style={{padding:"7px 12px",borderRadius:6,border:"1px solid #2d6cdf",background:"#10264a",color:"#fff",cursor:"pointer"}}
+            >
+              Select Camera for Geofence
+            </button>
+          </div>
+        )}
+
+        {cameraId === selectedCameraId && (
+          <div style={{ display: "flex", gap: "8px", padding: "10px", background: "#0b1220", flexWrap: "wrap" }}>
+            <button onClick={(e)=>{e.stopPropagation();setDrawingGeofence(true);setGeofenceLocked(false);setGeofencePoints([]);setError("");}} style={{padding:"7px 10px",borderRadius:6,border:"1px solid #2d6cdf",background:"#10264a",color:"#fff",cursor:"pointer"}}>Draw Geofence</button>
+            <button onClick={(e)=>{e.stopPropagation();saveGeofence();}} disabled={geofencePoints.length<3} style={{padding:"7px 10px",borderRadius:6,border:"1px solid #20c997",background:"#10382f",color:"#fff",cursor:"pointer"}}>Lock & Save</button>
+            <button onClick={(e)=>{e.stopPropagation();resetGeofence();}} style={{padding:"7px 10px",borderRadius:6,border:"1px solid #ef4444",background:"#3a1620",color:"#fff",cursor:"pointer"}}>Reset</button>
+            <span style={{fontSize:11,color:"#94a3b8",alignSelf:"center"}}>{drawingGeofence ? `Click points: ${geofencePoints.length}` : geofenceLocked ? "GEOFENCE LOCKED" : "No geofence"}</span>
+          </div>
+        )}
+
+        {/* CAMERA INFO */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns:
+              "repeat(4, minmax(0,1fr))",
+            gap: "8px",
+            padding: "12px",
+            background:
+              "#0b1220",
+          }}
+        >
+          <InfoBox
+            title="FPS"
+            value={fps.toFixed(1)}
+          />
+
+          <InfoBox
+            title="EVENTS"
+            value={
+              camera.events ?? 0
+            }
+          />
+
+          <InfoBox
+            title="FRAMES"
+            value={
+              camera.processed_frames ??
+              0
+            }
+          />
+
+          <InfoBox
+            title="STATUS"
+            value={
+              camera.connection_state ||
+              (isLive
+                ? "LIVE"
+                : "OFF")
+            }
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // ---------------------------------------------------------
+  // UI
+  // ---------------------------------------------------------
+
+  return (
+    <div
+      style={{
+        minHeight: "100vh",
+        background:
+          "linear-gradient(180deg,#07101f 0%,#0b1120 100%)",
+        color: "#fff",
+        padding: "24px",
+        fontFamily:
+          "Arial, Helvetica, sans-serif",
+      }}
+    >
+      {/* =====================================================
+          HEADER
+      ====================================================== */}
+
+      <div
+        style={{
+          display: "flex",
+          justifyContent:
+            "space-between",
+          alignItems: "center",
+          gap: "20px",
+          marginBottom: "22px",
+          flexWrap: "wrap",
+        }}
+      >
+        <div>
+          <h1
+            style={{
+              margin: 0,
+              fontSize: "34px",
+              fontWeight: 900,
+              letterSpacing:
+                "0.5px",
+            }}
+          >
+            BORDER SURVEILLANCE AI
+          </h1>
+
+          <p
+            style={{
+              margin:
+                "8px 0 0 0",
+              color: "#94a3b8",
+              fontSize: "15px",
+            }}
+          >
+            AI Powered CCTV Monitoring
+            & Face Recognition
+          </p>
+        </div>
+
+        <div
+          style={{
+            display: "flex",
+            gap: "10px",
+            alignItems: "center",
+            flexWrap: "wrap",
+          }}
+        >
+          <div
+            style={{
+              padding:
+                "11px 16px",
+              borderRadius: "10px",
+              background: running
+                ? "#14532d"
+                : "#334155",
+              color: running
+                ? "#86efac"
+                : "#e2e8f0",
+              fontWeight: 800,
+              whiteSpace:
+                "nowrap",
+            }}
+          >
+            ● {stats.status}
+          </div>
+
+          {!running ? (
+            <button
+              onClick={
+                startSurveillance
+              }
+              style={{
+                border: "none",
+                borderRadius: "10px",
+                padding:
+                  "13px 20px",
+                background:
+                  "#16a34a",
+                color: "white",
+                fontWeight: 900,
+                fontSize: "14px",
+                cursor: "pointer",
+              }}
+            >
+              ▶ START SURVEILLANCE
+            </button>
+          ) : (
+            <button
+              onClick={
+                stopSurveillance
+              }
+              style={{
+                border: "none",
+                borderRadius: "10px",
+                padding:
+                  "13px 20px",
+                background:
+                  "#dc2626",
+                color: "white",
+                fontWeight: 900,
+                fontSize: "14px",
+                cursor: "pointer",
+              }}
+            >
+              ■ STOP SURVEILLANCE
+            </button>
+          )}
+
+          <button
+            onClick={
+              openRemoteCameraPage
+            }
+            style={{
+              border:
+                "1px solid #334155",
+              borderRadius: "10px",
+              padding:
+                "13px 18px",
+              background:
+                "#111827",
+              color: "#cbd5e1",
+              fontWeight: 800,
+              fontSize: "14px",
+              cursor: "pointer",
+            }}
+          >
+            + CONNECT REMOTE CAMERA
+          </button>
+        </div>
+      </div>
+
+      {showRemoteCameraLink && (
+        <div
+          onClick={() => setShowRemoteCameraLink(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 9999,
+            background: "rgba(0,0,0,0.72)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "20px",
+          }}
+        >
+          <div
+            onClick={(event) => event.stopPropagation()}
+            style={{
+              width: "100%",
+              maxWidth: "620px",
+              background: "#0f172a",
+              border: "1px solid #334155",
+              borderRadius: "16px",
+              padding: "24px",
+              boxShadow: "0 25px 70px rgba(0,0,0,0.45)",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: "8px",
+              }}
+            >
+              <div>
+                <div
+                  style={{
+                    color: "#f8fafc",
+                    fontSize: "21px",
+                    fontWeight: 900,
+                  }}
+                >
+                  📱 Remote Camera Link
+                </div>
+                <div
+                  style={{
+                    color: "#94a3b8",
+                    fontSize: "13px",
+                    marginTop: "5px",
+                  }}
+                >
+                  Open this link on the phone you want to use as a remote camera.
+                </div>
+              </div>
+
+              <button
+                onClick={() => setShowRemoteCameraLink(false)}
+                style={{
+                  border: "none",
+                  background: "transparent",
+                  color: "#94a3b8",
+                  fontSize: "24px",
+                  cursor: "pointer",
+                }}
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </div>
+
+            {remoteCameraLoading ? (
+              <div
+                style={{
+                  marginTop: "20px",
+                  padding: "16px",
+                  borderRadius: "10px",
+                  background: "#111827",
+                  color: "#cbd5e1",
+                }}
+              >
+                Getting the current remote camera link...
+              </div>
+            ) : (
+              <>
+                <div
+                  style={{
+                    marginTop: "20px",
+                    padding: "14px",
+                    borderRadius: "10px",
+                    background: "#020617",
+                    border: "1px solid #334155",
+                    color: "#67e8f9",
+                    fontSize: "14px",
+                    lineHeight: 1.5,
+                    wordBreak: "break-all",
+                    userSelect: "all",
+                  }}
+                >
+                  {remoteCameraUrl || "Remote camera link unavailable"}
+                </div>
+
+                <div
+                  style={{
+                    display: "flex",
+                    gap: "10px",
+                    marginTop: "16px",
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <button
+                    onClick={copyRemoteCameraUrl}
+                    disabled={!remoteCameraUrl}
+                    style={{
+                      border: "none",
+                      borderRadius: "10px",
+                      padding: "11px 16px",
+                      background: "#2563eb",
+                      color: "white",
+                      fontWeight: 800,
+                      cursor: remoteCameraUrl ? "pointer" : "not-allowed",
+                    }}
+                  >
+                    COPY LINK
+                  </button>
+
+                  <button
+                    onClick={() =>
+                      window.open(
+                        remoteCameraUrl,
+                        "_blank",
+                        "noopener,noreferrer"
+                      )
+                    }
+                    disabled={!remoteCameraUrl}
+                    style={{
+                      border: "1px solid #475569",
+                      borderRadius: "10px",
+                      padding: "11px 16px",
+                      background: "#1e293b",
+                      color: "#e2e8f0",
+                      fontWeight: 800,
+                      cursor: remoteCameraUrl ? "pointer" : "not-allowed",
+                    }}
+                  >
+                    OPEN CAMERA PAGE
+                  </button>
+
+                  <button
+                    onClick={() => setShowRemoteCameraLink(false)}
+                    style={{
+                      border: "1px solid #475569",
+                      borderRadius: "10px",
+                      padding: "11px 16px",
+                      background: "transparent",
+                      color: "#94a3b8",
+                      fontWeight: 800,
+                      cursor: "pointer",
+                    }}
+                  >
+                    CLOSE
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* =====================================================
+          ERROR
+      ====================================================== */}
+
+      {error && (
+        <div
+          style={{
+            background:
+              "#7f1d1d",
+            border:
+              "1px solid #b91c1c",
+            color: "#fecaca",
+            padding: "13px 16px",
+            borderRadius: "10px",
+            marginBottom: "18px",
+            fontWeight: 700,
+          }}
+        >
+          {error}
+        </div>
+      )}
+
+      {/* =====================================================
+          TOP STATS
+      ====================================================== */}
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns:
+            "repeat(4,minmax(0,1fr))",
+          gap: "14px",
+          marginBottom: "18px",
+        }}
+      >
+        <StatCard
+          title="PERSONS"
+          value={
+            stats.personsCount
+          }
+          accent="#60a5fa"
+        />
+
+        <StatCard
+          title="VEHICLES"
+          value={
+            stats.vehiclesCount
+          }
+          accent="#38bdf8"
+        />
+
+        <StatCard
+          title="FPS"
+          value={Number(
+            stats.fps || 0
+          ).toFixed(1)}
+          accent="#a78bfa"
+        />
+
+        <StatCard
+          title="ACTIVE CAMERAS"
+          value={cameras.length}
+          accent="#22c55e"
+        />
+      </div>
+
+      {/* =====================================================
+          AI INFORMATION
+      ====================================================== */}
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns:
+            "repeat(2,minmax(0,1fr))",
+          gap: "16px",
+          marginBottom: "22px",
+        }}
+      >
+        {/* FACE RECOGNITION */}
+
+        <div
+          style={{
+            background:
+              "linear-gradient(135deg,#101b35,#15254a)",
+            border:
+              "1px solid #2d4777",
+            borderRadius: "12px",
+            padding: "18px",
+          }}
+        >
+          <h2
+            style={{
+              margin:
+                "0 0 16px 0",
+              color: "#60a5fa",
+              fontSize: "21px",
+            }}
+          >
+            FACE RECOGNITION
+          </h2>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns:
+                "repeat(3,minmax(0,1fr))",
+              gap: "14px",
+            }}
+          >
+            <Metric
+              label="IDENTIFIED PERSON"
+              value={
+                stats.recognizedName ||
+                "UNKNOWN"
+              }
+            />
+
+            <Metric
+              label="MATCH SIMILARITY"
+              value={Number(
+                stats.recognitionConfidence ||
+                  0
+              ).toFixed(3)}
+            />
+
+            <Metric
+              label="CONFIDENCE"
+              value={`${confidencePercent.toFixed(
+                1
+              )}%`}
+            />
+          </div>
+        </div>
+
+        {/* VEHICLE IDENTIFICATION */}
+
+        <div
+          style={{
+            background:
+              "linear-gradient(135deg,#101b35,#15254a)",
+            border:
+              "1px solid #2d4777",
+            borderRadius: "12px",
+            padding: "18px",
+          }}
+        >
+          <h2
+            style={{
+              margin:
+                "0 0 16px 0",
+              color: "#22d3ee",
+              fontSize: "21px",
+            }}
+          >
+            VEHICLE IDENTIFICATION
+          </h2>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns:
+                "repeat(3,minmax(0,1fr))",
+              gap: "14px",
+            }}
+          >
+            <Metric
+              label="VEHICLES DETECTED"
+              value={
+                stats.vehiclesCount
+              }
+            />
+
+            <Metric
+              label="VEHICLE TYPE"
+              value={
+                stats.vehicleName ||
+                "NONE"
+              }
+            />
+
+            <Metric
+              label="ANPR STATUS"
+              value="OCR ACTIVE / PENDING"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* =====================================================
+          CENTRALIZED CAMERA MONITORING
+      ====================================================== */}
+
+      <div
+        style={{
+          marginBottom: "24px",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent:
+              "space-between",
+            alignItems: "center",
+            gap: "15px",
+            marginBottom: "14px",
+            flexWrap: "wrap",
+          }}
+        >
+          <h2
+            style={{
+              margin: 0,
+              color: "#60a5fa",
+              fontSize: "25px",
+            }}
+          >
+            CENTRALIZED CAMERA
+            MONITORING
+          </h2>
+
+          <div
+            style={{
+              color: "#22c55e",
+              fontWeight: 900,
+              fontSize: "14px",
+            }}
+          >
+            ● {cameras.length}
+            {" CAMERA(S) CONNECTED"}
+          </div>
+        </div>
+
+        {loadingCameras &&
+          cameras.length === 0 && (
+            <div
+              style={{
+                padding: "30px",
+                borderRadius: "12px",
+                background:
+                  "#111827",
+                color: "#94a3b8",
+                textAlign:
+                  "center",
+              }}
+            >
+              CONNECTING TO CENTRAL
+              CAMERA SYSTEM...
+            </div>
+          )}
+
+        {!loadingCameras &&
+          cameras.length === 0 && (
+            <div
+              style={{
+                padding: "40px",
+                border:
+                  "1px dashed #334155",
+                borderRadius: "12px",
+                background:
+                  "#0f172a",
+                color: "#94a3b8",
+                textAlign:
+                  "center",
+              }}
+            >
+              <div
+                style={{
+                  fontSize: "18px",
+                  fontWeight: 800,
+                  color: "#cbd5e1",
+                }}
+              >
+                NO CAMERAS CONNECTED
+              </div>
+
+              <div
+                style={{
+                  marginTop: "8px",
+                  fontSize: "14px",
+                }}
+              >
+                Start the laptop camera
+                or connect a remote
+                camera.
+              </div>
+            </div>
+          )}
+
+        {cameras.length > 0 && (
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns:
+                "repeat(2,minmax(0,1fr))",
+              gap: "18px",
+            }}
+          >
+            {cameras.map(
+              (camera) => (
+                <CameraCard
+                  key={
+                    camera.camera_id
+                  }
+                  camera={camera}
+                />
+              )
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* =====================================================
+          LARGE AI SURVEILLANCE FEED
+      ====================================================== */}
+
+      <div
+        style={{
+          background:
+            "#0f172a",
+          border:
+            "1px solid #25354d",
+          borderRadius: "14px",
+          overflow: "hidden",
+          marginBottom: "24px",
+        }}
+      >
+        <div
+          style={{
+            padding:
+              "15px 18px",
+            display: "flex",
+            justifyContent:
+              "space-between",
+            alignItems: "center",
+            gap: "15px",
+            flexWrap: "wrap",
+            background:
+              "#111c2f",
+          }}
+        >
+          <div>
+            <h2
+              style={{
+                margin: 0,
+                color: "#38bdf8",
+                fontSize: "24px",
+              }}
+            >
+              AI SURVEILLANCE FEED
+            </h2>
+
+            <div
+              style={{
+                marginTop: "5px",
+                color: "#94a3b8",
+                fontSize: "13px",
+              }}
+            >
+              Real-time processed camera
+              output
+            </div>
+          </div>
+
+          {selectedCamera && (
+            <div
+              style={{
+                padding:
+                  "8px 12px",
+                borderRadius: "8px",
+                background:
+                  "#172554",
+                color: "#93c5fd",
+                fontWeight: 800,
+                fontSize: "13px",
+              }}
+            >
+              CAMERA:{" "}
+              {
+                selectedCamera.camera_id
+              }
+            </div>
+          )}
+        </div>
+
+        {selectedCamera ? (
+          <div
+            style={{
+              width: "100%",
+              height: "560px",
+              background:
+                "#020617",
+            }}
+          >
+            <img
+              src={getMjpegUrl(
+                selectedCamera.camera_id
+              )}
+              alt="AI processed surveillance feed"
+              loading="eager"
+              style={{
+                width: "100%",
+                height: "100%",
+                objectFit: "contain",
+                display: "block",
+                background:
+                  "#020617",
+              }}
+            />
+          </div>
+        ) : (
+          <div
+            style={{
+              height: "420px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent:
+                "center",
+              background:
+                "#020617",
+              color: "#64748b",
+              fontSize: "17px",
+              fontWeight: 700,
+            }}
+          >
+            AI FEED WILL APPEAR
+            HERE WHEN A CAMERA
+            CONNECTS
+          </div>
+        )}
+      </div>
+
+      {/* =====================================================
+          SELECTED CAMERA DETAILS
+      ====================================================== */}
+
+      {selectedCamera && (
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns:
+              "repeat(4,minmax(0,1fr))",
+            gap: "12px",
+            marginBottom: "20px",
+          }}
+        >
+          <DetailCard
+            title="CAMERA ID"
+            value={
+              selectedCamera.camera_id
+            }
+          />
+
+          <DetailCard
+            title="SOURCE"
+            value={
+              selectedCamera.source_type ||
+              "UNKNOWN"
+            }
+          />
+
+          <DetailCard
+            title="RESOLUTION"
+            value={
+              selectedCamera.width &&
+              selectedCamera.height
+                ? `${selectedCamera.width} × ${selectedCamera.height}`
+                : "UNKNOWN"
+            }
+          />
+
+          <DetailCard
+            title="PROCESSING"
+            value={
+              selectedCamera.processed_frames ??
+              0
+            }
+          />
+        </div>
+      )}
+
+      {/* =====================================================
+          FOOTER
+      ====================================================== */}
+
+      <div
+        style={{
+          borderTop:
+            "1px solid #1e293b",
+          paddingTop: "16px",
+          color: "#64748b",
+          fontSize: "12px",
+          textAlign: "center",
+        }}
+      >
+        IBVAP • INTELLIGENT BORDER
+        VIDEO ANALYTICS PLATFORM
+      </div>
+
+      {/* =====================================================
+          RESPONSIVE CSS
+      ====================================================== */}
+
+      <style>
+        {`
+          * {
+            box-sizing: border-box;
+          }
+
+          button {
+            transition:
+              transform 0.15s ease,
+              opacity 0.15s ease;
+          }
+
+          button:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+          }
+
+          @media (max-width: 1100px) {
+            div[style*="repeat(4,minmax(0,1fr))"] {
+              grid-template-columns:
+                repeat(2,minmax(0,1fr)) !important;
+            }
+          }
+
+          @media (max-width: 800px) {
+            body {
+              margin: 0;
+            }
+
+            div[style*="repeat(2,minmax(0,1fr))"] {
+              grid-template-columns:
+                1fr !important;
+            }
+
+            div[style*="height: 560px"] {
+              height: 420px !important;
+            }
+
+            div[style*="height: 360px"] {
+              height: 300px !important;
+            }
+          }
+
+          @media (max-width: 600px) {
+            div[style*="repeat(3,minmax(0,1fr))"] {
+              grid-template-columns:
+                1fr !important;
+            }
+
+            div[style*="repeat(4,minmax(0,1fr))"] {
+              grid-template-columns:
+                1fr !important;
+            }
+          }
+        `}
+      </style>
+    </div>
+  );
+}
+
+// =============================================================
+// SMALL COMPONENTS
+// =============================================================
+
+function StatCard({
+  title,
+  value,
+  accent,
+}) {
+  return (
+    <div
+      className="stat-card"
+      style={{
+        background:
+          "#111827",
+        border:
+          "1px solid #25354d",
+        borderRadius: "12px",
+        padding: "18px",
+      }}
+    >
+      <div
+        style={{
+          color: accent,
+          fontWeight: 800,
+          fontSize: "14px",
+          marginBottom: "12px",
+        }}
+      >
+        {title}
+      </div>
+
+      <div
+        style={{
+          fontSize: "28px",
+          fontWeight: 900,
+          color: "#f8fafc",
+        }}
+      >
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function Metric({
+  label,
+  value,
+}) {
+  return (
+    <div>
+      <div
+        style={{
+          color: "#94a3b8",
+          fontSize: "13px",
+          marginBottom: "6px",
+        }}
+      >
+        {label}
+      </div>
+
+      <div
+        style={{
+          color: "#f8fafc",
+          fontSize: "21px",
+          fontWeight: 900,
+          wordBreak:
+            "break-word",
+        }}
+      >
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function InfoBox({
+  title,
+  value,
+}) {
+  return (
+    <div
+      style={{
+        background:
+          "#111827",
+        borderRadius: "8px",
+        padding: "9px",
+        minWidth: 0,
+      }}
+    >
+      <div
+        style={{
+          color: "#64748b",
+          fontSize: "10px",
+          fontWeight: 800,
+        }}
+      >
+        {title}
+      </div>
+
+      <div
+        style={{
+          marginTop: "4px",
+          color: "#e2e8f0",
+          fontSize: "12px",
+          fontWeight: 800,
+          overflow: "hidden",
+          textOverflow:
+            "ellipsis",
+          whiteSpace:
+            "nowrap",
+        }}
+      >
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function DetailCard({
+  title,
+  value,
+}) {
+  return (
+    <div
+      style={{
+        background:
+          "#111827",
+        border:
+          "1px solid #243244",
+        borderRadius: "10px",
+        padding: "14px",
+      }}
+    >
+      <div
+        style={{
+          color: "#64748b",
+          fontSize: "11px",
+          fontWeight: 800,
+        }}
+      >
+        {title}
+      </div>
+
+      <div
+        style={{
+          marginTop: "7px",
+          color: "#e2e8f0",
+          fontWeight: 900,
+          fontSize: "14px",
+          wordBreak:
+            "break-word",
+        }}
+      >
+        {value}
+      </div>
+    </div>
+  );
+}
+App;
+
+function Login({onLogin, theme, setTheme}) {
+  const [show,setShow]=useState(false); const [email,setEmail]=useState(''); const [password,setPassword]=useState('');
+  const submit=(e)=>{e.preventDefault(); onLogin();};
+  return <div className="login-page">
+    <button className="theme-btn login-theme" onClick={()=>setTheme(theme==='dark'?'light':'dark')}>{theme==='dark'?<Sun size={18}/>:<Moon size={18}/>}</button>
+    <div className="login-card">
+      <div className="brand-mark"><Shield size={34}/></div><h1>BORDER SENTINEL</h1><p>AI SURVEILLANCE COMMAND CENTER</p>
+      <div className="login-line"/><h2>Admin Login</h2><p className="muted">Sign in to access the surveillance dashboard</p>
+      <form onSubmit={submit}>
+        <label>Admin ID / Email</label><div className="input-wrap"><Mail size={18}/><input value={email} onChange={e=>setEmail(e.target.value)} placeholder="admin@bordersentinel.ai" required/></div>
+        <label>Password</label><div className="input-wrap"><Lock size={18}/><input type={show?'text':'password'} value={password} onChange={e=>setPassword(e.target.value)} placeholder="••••••••" required/><button type="button" className="icon-btn" onClick={()=>setShow(!show)}>{show?<EyeOff size={18}/>:<Eye size={18}/>}</button></div>
+        <div className="login-options"><label className="check"><input type="checkbox"/> Remember me</label><span>Secure access</span></div>
+        <button className="primary-btn" type="submit">Sign In</button>
+      </form><div className="demo-note">Prototype access • Any valid email/password</div>
+    </div>
+  </div>
+}
+
+function Root(){const [logged,setLogged]=useState(false);const [theme,setTheme]=useState('dark');return <div className={theme==='light'?'theme-light':''}>{logged?<App theme={theme} setTheme={setTheme} onLogout={()=>setLogged(false)}/>:<Login onLogin={()=>setLogged(true)} theme={theme} setTheme={setTheme}/>}</div>}
+window.addEventListener("error", (e) => {
+  console.error("Border Sentinel error:", e.error || e.message);
+});
+
+const root = ReactDOM.createRoot(document.getElementById("root"));
+root.render(
+  <React.Fragment>
+    <InjectedStyles />
+    <Root />
+  </React.Fragment>
+);
+
+</script>
+</body>
+</html>
+"""
+
+
+async def embedded_frontend_handler(request):
+    return web.Response(
+        text=EMBEDDED_FRONTEND_HTML,
+        content_type="text/html",
+        charset="utf-8",
+    )
+
 # ============================================================
 # CREATE APP
 # ============================================================
-async def dashboard_stats_handler(request):
-    return web.json_response(
-        latest_dashboard_stats
-    )
-@web.middleware
-async def cors_middleware(request, handler):
-    if request.method == "OPTIONS":
-        response = web.Response(status=204)
-    else:
-        response = await handler(request)
-
-    response.headers["Access-Control-Allow-Origin"] = "*"
-    response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
-    response.headers["Access-Control-Allow-Headers"] = "Content-Type"
-    return response
-
 
 def create_app():
-    app = web.Application(
-        middlewares=[cors_middleware]
-    )
+
+    app = web.Application()
+
 
     app.router.add_get(
 
         "/",
 
-        dashboard_handler
+        embedded_frontend_handler
 
     )
 
@@ -8321,6 +9532,21 @@ def create_app():
 
         phone_handler
 
+    )
+
+    app.router.add_get(
+        "/api/geofence/{camera_id}",
+        geofence_get_handler
+    )
+
+    app.router.add_post(
+        "/api/geofence/{camera_id}/set",
+        geofence_set_handler
+    )
+
+    app.router.add_post(
+        "/api/geofence/{camera_id}/reset",
+        geofence_reset_handler
     )
 
 
@@ -8349,10 +9575,7 @@ def create_app():
         cameras_handler
 
     )
-    app.router.add_get(
-    "/api/dashboard-stats",
-    dashboard_stats_handler
-    )
+
 
     app.router.add_get(
 
