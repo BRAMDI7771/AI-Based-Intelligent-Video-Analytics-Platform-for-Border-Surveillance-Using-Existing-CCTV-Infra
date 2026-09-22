@@ -8821,28 +8821,33 @@ def main():
 
     app = create_app()
 
+# ============================================================
+# SERVER START
+# ============================================================
 
-    # --------------------------------------------------------
-    # SERVER
-    # --------------------------------------------------------
+# Railway provides the PORT environment variable.
+# Locally, fall back to the existing SERVER_PORT.
+railway_port = int(os.environ.get("PORT", SERVER_PORT))
+
+# Railway provides HTTPS externally, so the app itself
+# should run on plain HTTP.
+if os.environ.get("RAILWAY_ENVIRONMENT"):
+    print("[SERVER] Railway environment detected")
+    print(f"[SERVER] Starting HTTP server on 0.0.0.0:{railway_port}")
 
     web.run_app(
-
         app,
-
-        host=SERVER_HOST,
-
-        port=SERVER_PORT,
-
-        ssl_context=ssl_context
-
+        host="0.0.0.0",
+        port=railway_port
     )
 
+else:
+    # Local Windows development
+    print(f"[SERVER] Starting local HTTPS server on {SERVER_HOST}:{SERVER_PORT}")
 
-# ============================================================
-# ENTRY POINT
-# ============================================================
-
-if __name__ == "__main__":
-
-    main()
+    web.run_app(
+        app,
+        host=SERVER_HOST,
+        port=SERVER_PORT,
+        ssl_context=ssl_context
+    )
