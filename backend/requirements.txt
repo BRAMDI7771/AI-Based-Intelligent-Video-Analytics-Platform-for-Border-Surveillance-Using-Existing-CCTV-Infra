@@ -1,1 +1,3 @@
 python-dotenv
+av
+opencv-python-headless
