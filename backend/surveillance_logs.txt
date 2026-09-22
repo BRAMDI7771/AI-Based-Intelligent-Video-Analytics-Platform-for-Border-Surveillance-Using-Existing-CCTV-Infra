@@ -1,0 +1,13 @@
+[2026-09-22 01:30:23] ALERT: Geofence breach | Camera: CAM-LAPTOP
+[2026-09-22 01:30:27] ALERT: Geofence breach | Camera: CAM-LAPTOP
+[2026-09-22 01:30:30] ALERT: Geofence breach | Camera: CAM-LAPTOP
+[2026-09-22 01:30:33] ALERT: Geofence breach | Camera: CAM-LAPTOP
+[2026-09-22 01:30:36] ALERT: Geofence breach | Camera: CAM-LAPTOP
+[2026-09-22 01:30:39] ALERT: Geofence breach | Camera: CAM-LAPTOP
+[2026-09-22 01:30:42] ALERT: Geofence breach | Camera: CAM-LAPTOP
+[2026-09-22 01:30:45] ALERT: Geofence breach | Camera: CAM-LAPTOP
+[2026-09-22 01:44:23] ALERT: Geofence breach | Camera: CAM-LAPTOP
+[2026-09-22 01:44:26] ALERT: Geofence breach | Camera: CAM-LAPTOP
+[2026-09-22 06:54:22] ALERT: Geofence breach | Camera: CAM-LAPTOP
+[2026-09-22 06:54:25] ALERT: Geofence breach | Camera: CAM-LAPTOP
+[2026-09-22 06:54:39] ALERT: Geofence breach | Camera: CAM-LAPTOP
