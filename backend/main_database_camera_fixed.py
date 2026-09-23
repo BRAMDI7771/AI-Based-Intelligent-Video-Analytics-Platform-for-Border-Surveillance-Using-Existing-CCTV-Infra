@@ -7226,12 +7226,15 @@ function stopCamera(
 
 async def dashboard_handler(request):
 
+    frontend_path = Path(__file__).resolve().parent.parent / "frontend" / "dist" / "index.html"
+
+    if frontend_path.exists():
+        return web.FileResponse(frontend_path)
+
     return web.Response(
-
-        text=DASHBOARD_HTML,
-
-        content_type="text/html"
-
+        text="Frontend build not found.",
+        content_type="text/plain",
+        status=404
     )
 
 
