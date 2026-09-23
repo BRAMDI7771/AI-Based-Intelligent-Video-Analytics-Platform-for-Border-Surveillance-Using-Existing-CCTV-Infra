@@ -7501,32 +7501,24 @@ async def laptop_stop_handler(request):
 # ============================================================
 
 async def offer_handler(request):
+
     try:
+
         params = await request.json()
-        offer = RTCSessionDescription(sdp=params["sdp"], type=params["type"])
 
-        pc = RTCPeerConnection()
-        channel_container = {"channel": None}
+        offer = RTCSessionDescription(
+            sdp=params["sdp"],
+            type=params["type"]
+        )
 
-        @pc.on("datachannel")
-        def on_datachannel(channel):
-            channel_container["channel"] = channel
-
-        @pc.on("track")
-        def on_track(track):
-            if track.kind == "video":
-                pc.addTrack(VideoTransformTrack(track, channel_container))
-
-        await pc.setRemoteDescription(offer)
-        answer = await pc.createAnswer()
-        await pc.setLocalDescription(answer)
-
-        return web.json_response({
-            "sdp": pc.localDescription.sdp,
-            "type": pc.localDescription.type
-        })
     except Exception as e:
-        return web.json_response({"error": str(e)}, status=500)
+
+        return web.json_response(
+            {
+                "error": str(e)
+            },
+            status=500
+        )
 
     # --------------------------------------------------------
     # CAMERA LIMIT
@@ -7544,33 +7536,24 @@ async def offer_handler(request):
 
         ])
 
-
     if phone_count >= MAX_PHONE_CAMERAS:
 
         return web.json_response(
 
             {
-
                 "error":
                     "Maximum remote camera limit reached."
-
             },
 
             status=503
 
         )
 
-
     # --------------------------------------------------------
     # NEW CAMERA
     # --------------------------------------------------------
 
-    camera_id = (
-
-        get_new_phone_camera_id()
-
-    )
-
+    camera_id = get_new_phone_camera_id()
 
     session = CameraSession(
 
@@ -7579,7 +7562,6 @@ async def offer_handler(request):
         source_type="REMOTE"
 
     )
-
 
     # --------------------------------------------------------
     # WEBRTC PEER
