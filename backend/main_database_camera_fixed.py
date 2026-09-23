@@ -8428,6 +8428,17 @@ def create_app():
     )
 
 
+    app.router.add_get("/snapshot/{camera_id}", snapshot_handler)
+    app.router.add_get("/mjpeg/{camera_id}", mjpeg_handler)
+
+    frontend_dist = Path(__file__).resolve().parent.parent / "frontend" / "dist"
+
+    app.router.add_static(
+    "/assets/",
+    path=frontend_dist / "assets",
+    name="frontend-assets"
+   )
+
     return app
 
 
