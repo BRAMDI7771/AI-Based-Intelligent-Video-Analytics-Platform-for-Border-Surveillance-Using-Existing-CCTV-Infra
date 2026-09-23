@@ -27,6 +27,7 @@ RUN apt-get update && apt-get install -y \
 
 # Backend dependencies
 COPY backend/requirements.txt /app/backend/requirements.txt
+RUN python -m pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
 RUN python -m pip install --no-cache-dir -r /app/backend/requirements.txt
 
 # Backend code
